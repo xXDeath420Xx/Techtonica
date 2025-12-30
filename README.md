@@ -3,7 +3,7 @@
 Run 24/7 Techtonica multiplayer servers without Steam dependency.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-blue)](https://github.com/CertiFried/TechtonicaServer)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-blue)](https://github.com/xXDeath420Xx/Techtonica)
 
 ## Features
 
@@ -26,7 +26,7 @@ Run 24/7 Techtonica multiplayer servers without Steam dependency.
 
 **Linux:**
 ```bash
-wget https://github.com/CertiFried/TechtonicaServer/releases/latest/download/TechtonicaDedicatedServer-Linux.zip
+wget https://github.com/xXDeath420Xx/Techtonica/releases/latest/download/TechtonicaDedicatedServer-Linux.zip
 unzip TechtonicaDedicatedServer-Linux.zip && cd TechtonicaDedicatedServer-Linux
 ./install.sh
 ```
@@ -44,9 +44,9 @@ See [DOCUMENTATION.md](DOCUMENTATION.md) for complete setup instructions.
 
 | Package | Description |
 |---------|-------------|
-| [TechtonicaDirectConnect](releases) | Client mod for players |
-| [TechtonicaDedicatedServer-Linux](releases) | Linux server package |
-| [TechtonicaDedicatedServer-Windows](releases) | Windows server package |
+| [TechtonicaDirectConnect](https://thunderstore.io/c/techtonica/p/CertiFried/TechtonicaDirectConnect/) | Client mod for players (Thunderstore) |
+| [TechtonicaDedicatedServer-Linux](deployment/linux-server/) | Linux server package |
+| [TechtonicaDedicatedServer-Windows](deployment/windows-server/) | Windows server package |
 
 ## Requirements
 
@@ -112,8 +112,8 @@ Features:
 
 ## Support
 
-- **Issues:** [GitHub Issues](https://github.com/CertiFried/TechtonicaServer/issues)
-- **Discord:** [CertiFried Community](https://discord.gg/certifried)
+- **Issues:** [GitHub Issues](https://github.com/xXDeath420Xx/Techtonica/issues)
+- **Discord:** [CertiFried Community](https://discord.com/invite/mJfbDgWA7z)
 - **Website:** [certifriedmultitool.com](https://certifriedmultitool.com)
 
 ## Credits

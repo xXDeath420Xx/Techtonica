@@ -242,9 +242,9 @@ To run multiple servers:
 
 ## Support
 
-- **GitHub:** https://github.com/CertiFried/TechtonicaServer
-- **Discord:** https://discord.gg/certifried
-- **Issues:** https://github.com/CertiFried/TechtonicaServer/issues
+- **GitHub:** https://github.com/xXDeath420Xx/Techtonica
+- **Discord:** https://discord.com/invite/mJfbDgWA7z
+- **Issues:** https://github.com/xXDeath420Xx/Techtonica/issues
 
 ## License
 

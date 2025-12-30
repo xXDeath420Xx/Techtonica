@@ -82,8 +82,8 @@ Want to host your own server? Check out the companion mod:
 
 ## Support
 
-- Report issues on [GitHub](https://github.com/CertiFried/TechtonicaDirectConnect/issues)
-- Join the [CertiFried Discord](https://discord.gg/certifried)
+- Report issues on [GitHub](https://github.com/xXDeath420Xx/Techtonica/issues)
+- Join the [CertiFried Discord](https://discord.com/invite/mJfbDgWA7z)
 
 ## License
 

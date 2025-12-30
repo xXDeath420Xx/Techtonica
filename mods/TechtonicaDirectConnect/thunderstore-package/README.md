@@ -49,8 +49,10 @@ Check these resources for community servers:
 
 ## Server Hosting
 
-Want to host your own server? Check out the companion mod:
-- **TechtonicaDedicatedServer** - Full dedicated server hosting solution
+Want to host your own 24/7 dedicated server? Check out the server package on GitHub:
+- **[TechtonicaDedicatedServer](https://github.com/xXDeath420Xx/Techtonica/tree/main/deployment)** - Full dedicated server hosting solution for Linux (Wine) and Windows
+- Includes admin panel, auto-start, backup management
+- Supports headless operation (no GPU required)
 
 ## Troubleshooting
 
@@ -82,8 +84,8 @@ Want to host your own server? Check out the companion mod:
 
 ## Support
 
-- Report issues on [GitHub](https://github.com/CertiFried/TechtonicaDirectConnect/issues)
-- Join the [CertiFried Discord](https://discord.gg/certifried)
+- Report issues on [GitHub](https://github.com/xXDeath420Xx/Techtonica/issues)
+- Join the [CertiFried Discord](https://discord.com/invite/mJfbDgWA7z)
 
 ## License
 

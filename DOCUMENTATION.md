@@ -228,7 +228,7 @@ Required packages:
 
 ```bash
 # Download server package
-wget https://github.com/CertiFried/TechtonicaServer/releases/latest/download/TechtonicaDedicatedServer-Linux.zip
+wget https://github.com/xXDeath420Xx/Techtonica/releases/latest/download/TechtonicaDedicatedServer-Linux.zip
 unzip TechtonicaDedicatedServer-Linux.zip
 cd TechtonicaDedicatedServer-Linux
 
@@ -555,7 +555,7 @@ Backup these folders:
 ### Development Setup
 
 ```bash
-git clone https://github.com/CertiFried/TechtonicaServer
+git clone https://github.com/xXDeath420Xx/Techtonica
 cd TechtonicaServer
 
 # Build mods
