@@ -9,6 +9,7 @@ using HarmonyLib;
 using Mirror;
 using kcp2k;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace TechtonicaDirectConnect
 {
@@ -287,6 +288,62 @@ namespace TechtonicaDirectConnect
 
             try
             {
+                // Check if we're in a valid game scene (not main menu)
+                var currentScene = SceneManager.GetActiveScene().name;
+                Log.LogInfo($"[DirectConnect] Current scene: {currentScene}");
+
+                // Log all loaded scenes
+                for (int i = 0; i < SceneManager.sceneCount; i++)
+                {
+                    var scene = SceneManager.GetSceneAt(i);
+                    Log.LogInfo($"[DirectConnect] Loaded scene {i}: {scene.name} (active: {scene == SceneManager.GetActiveScene()})");
+                }
+
+                // Check if we're in the game world - look for Player Scene or Voxeland Scene
+                bool inGameWorld = false;
+                for (int i = 0; i < SceneManager.sceneCount; i++)
+                {
+                    var sceneName = SceneManager.GetSceneAt(i).name;
+                    if (sceneName.Contains("Player") || sceneName.Contains("Voxeland"))
+                    {
+                        inGameWorld = true;
+                        break;
+                    }
+                }
+
+                if (!inGameWorld)
+                {
+                    Log.LogWarning("[DirectConnect] Not in game world! Trying to trigger JoinMultiplayerAsClient...");
+                    _statusMessage = "Loading game world...";
+
+                    // Try to call the game's JoinMultiplayerAsClient via reflection
+                    var networkConnectorType = AccessTools.TypeByName("NetworkConnector");
+                    if (networkConnectorType != null)
+                    {
+                        var joinMethod = AccessTools.Method(networkConnectorType, "JoinMultiplayerAsClient");
+                        if (joinMethod != null)
+                        {
+                            Log.LogInfo("[DirectConnect] Found JoinMultiplayerAsClient, invoking...");
+                            joinMethod.Invoke(null, null);
+
+                            // Wait for scene to load then connect
+                            _pendingConnect = true;
+                            _pendingPort = port;
+                            StartCoroutine(WaitForSceneAndConnect(port));
+                            return;
+                        }
+                        else
+                        {
+                            Log.LogWarning("[DirectConnect] JoinMultiplayerAsClient method not found");
+                        }
+                    }
+
+                    // If we can't trigger join, warn user
+                    _statusMessage = "Start/load a game first, then connect";
+                    Log.LogWarning("[DirectConnect] Please load a game before connecting to a server");
+                    return;
+                }
+
                 _isConnecting = true;
                 _statusMessage = "Connecting...";
 
@@ -325,6 +382,69 @@ namespace TechtonicaDirectConnect
                 _isConnecting = false;
                 Log.LogError($"[DirectConnect] Connection error: {ex}");
             }
+        }
+
+        private bool _pendingConnect = false;
+        private int _pendingPort = 0;
+
+        private System.Collections.IEnumerator WaitForSceneAndConnect(int port)
+        {
+            float timeout = 30f;
+            float elapsed = 0f;
+
+            while (elapsed < timeout)
+            {
+                // Check if game scenes are loaded
+                bool inGameWorld = false;
+                for (int i = 0; i < SceneManager.sceneCount; i++)
+                {
+                    var sceneName = SceneManager.GetSceneAt(i).name;
+                    if (sceneName.Contains("Player") || sceneName.Contains("Voxeland"))
+                    {
+                        inGameWorld = true;
+                        break;
+                    }
+                }
+
+                if (inGameWorld)
+                {
+                    Log.LogInfo("[DirectConnect] Game world loaded! Proceeding with connection...");
+                    _pendingConnect = false;
+
+                    // Small delay to let things settle
+                    yield return new WaitForSeconds(1f);
+
+                    // Now connect
+                    _isConnecting = true;
+                    _statusMessage = "Connecting...";
+                    LastServerAddress.Value = _serverAddress;
+
+                    if (!EnableDirectConnect(port))
+                    {
+                        _statusMessage = "Failed to initialize connection";
+                        _isConnecting = false;
+                        yield break;
+                    }
+
+                    var networkManager = NetworkManager.singleton;
+                    if (networkManager != null)
+                    {
+                        networkManager.networkAddress = _serverAddress;
+                        networkManager.StartClient();
+                        Log.LogInfo($"[DirectConnect] Connecting to {_serverAddress}:{port}...");
+                        StartCoroutine(CheckConnection());
+                    }
+                    yield break;
+                }
+
+                elapsed += 0.5f;
+                _statusMessage = $"Loading game world... {elapsed:F0}s";
+                yield return new WaitForSeconds(0.5f);
+            }
+
+            _statusMessage = "Failed to load game world";
+            _pendingConnect = false;
+            Log.LogError("[DirectConnect] Timed out waiting for game world to load");
         }
 
         private System.Collections.IEnumerator CheckConnection()
@@ -508,7 +628,7 @@ namespace TechtonicaDirectConnect
     {
         public const string PLUGIN_GUID = "com.certifried.techtonicadirectconnect";
         public const string PLUGIN_NAME = "Techtonica Direct Connect";
-        public const string PLUGIN_VERSION = "1.0.17";
+        public const string PLUGIN_VERSION = "1.0.18";
     }
 
     /// <summary>

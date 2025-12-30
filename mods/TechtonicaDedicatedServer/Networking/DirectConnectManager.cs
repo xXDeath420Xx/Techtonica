@@ -3,6 +3,7 @@ using System.Net;
 using System.Reflection;
 using Mirror;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using kcp2k;
 
 namespace TechtonicaDedicatedServer.Networking
@@ -210,6 +211,34 @@ namespace TechtonicaDedicatedServer.Networking
 
                 networkManager.maxConnections = Plugin.MaxPlayers.Value;
 
+                // CRITICAL: Set the current scene name so Mirror tells clients to load it
+                // Without this, clients stay in menu and can't spawn scene objects
+                var currentScene = SceneManager.GetActiveScene().name;
+                Plugin.Log.LogInfo($"[DirectConnect] Current scene: {currentScene}");
+
+                // Set networkSceneName via reflection (may be internal in some Mirror versions)
+                var sceneNameField = typeof(NetworkManager).GetField("networkSceneName",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (sceneNameField != null)
+                {
+                    sceneNameField.SetValue(networkManager, currentScene);
+                    Plugin.Log.LogInfo($"[DirectConnect] Set networkSceneName to: {currentScene}");
+                }
+                else
+                {
+                    // Try the property instead
+                    var sceneNameProp = typeof(NetworkManager).GetProperty("networkSceneName",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (sceneNameProp != null && sceneNameProp.CanWrite)
+                    {
+                        sceneNameProp.SetValue(networkManager, currentScene);
+                        Plugin.Log.LogInfo($"[DirectConnect] Set networkSceneName property to: {currentScene}");
+                    }
+                }
+
+                // Register callback for when clients connect
+                NetworkServer.OnConnectedEvent += HandleClientConnect;
+
                 // Start server only (not host)
                 networkManager.StartServer();
 
@@ -358,6 +387,9 @@ namespace TechtonicaDedicatedServer.Networking
         {
             try
             {
+                // Unregister event handler
+                NetworkServer.OnConnectedEvent -= HandleClientConnect;
+
                 var networkManager = NetworkManager.singleton;
                 if (networkManager == null) return;
 
@@ -429,6 +461,38 @@ namespace TechtonicaDedicatedServer.Networking
         {
             if (!IsServer) return 0;
             return NetworkServer.connections.Count;
+        }
+
+        /// <summary>
+        /// Called when a client connects to the server.
+        /// Sends the current scene to the client so they can load it.
+        /// </summary>
+        private static void HandleClientConnect(NetworkConnection conn)
+        {
+            try
+            {
+                Plugin.Log.LogInfo($"[DirectConnect] Client connected: {conn.connectionId}");
+
+                // Get current scene
+                var currentScene = SceneManager.GetActiveScene().name;
+                Plugin.Log.LogInfo($"[DirectConnect] Sending scene '{currentScene}' to client {conn.connectionId}");
+
+                // Send scene message to client
+                // Mirror's SceneMessage tells the client to load a scene
+                var sceneMsg = new SceneMessage
+                {
+                    sceneName = currentScene,
+                    sceneOperation = SceneOperation.Normal,
+                    customHandling = false
+                };
+
+                conn.Send(sceneMsg);
+                Plugin.Log.LogInfo($"[DirectConnect] Sent SceneMessage to client {conn.connectionId}");
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log.LogError($"[DirectConnect] Error handling client connect: {ex}");
+            }
         }
     }
 }

@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Techtonica Server Manager</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-dark-900: #0b0f11;
+            --color-dark-800: #0f1316;
+            --color-dark-700: #131920;
+            --color-primary-500: #a78bfa;
+            --color-primary-600: #7c3aed;
+            --color-accent-blue: #60a5fa;
+            --color-success: #34d399;
+            --color-danger: #f87171;
+            --color-text-primary: #ffffff;
+            --color-text-secondary: rgba(255, 255, 255, 0.7);
+            --color-border-primary: rgba(255, 255, 255, 0.08);
+            --gradient-primary: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
+            --gradient-accent: linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--color-dark-900);
+            color: var(--color-text-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-image:
+                radial-gradient(ellipse at top left, rgba(124, 58, 237, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at bottom right, rgba(96, 165, 250, 0.1) 0%, transparent 50%);
+        }
+
+        .register-container {
+            width: 100%;
+            max-width: 420px;
+            padding: 2rem;
+        }
+
+        .register-card {
+            background: var(--color-dark-700);
+            border: 1px solid var(--color-border-primary);
+            border-radius: 1rem;
+            padding: 2.5rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .register-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .register-logo {
+            width: 80px;
+            height: 80px;
+            background: var(--gradient-accent);
+            border-radius: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            font-size: 2rem;
+            box-shadow: 0 0 30px rgba(167, 139, 250, 0.3);
+        }
+
+        .register-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: var(--gradient-accent);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .register-subtitle {
+            color: var(--color-text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .form-group { margin-bottom: 1.5rem; }
+
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--color-text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            background: var(--color-dark-800);
+            border: 1px solid var(--color-border-primary);
+            border-radius: 0.5rem;
+            color: var(--color-text-primary);
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--color-primary-500);
+            box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.15);
+        }
+
+        .form-input::placeholder { color: rgba(255, 255, 255, 0.3); }
+
+        .btn {
+            width: 100%;
+            padding: 0.875rem 1.5rem;
+            background: var(--gradient-primary);
+            border: none;
+            border-radius: 0.5rem;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4);
+        }
+
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+        .message {
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            margin-bottom: 1.5rem;
+            display: none;
+        }
+
+        .message.error {
+            background: rgba(248, 113, 113, 0.1);
+            border: 1px solid rgba(248, 113, 113, 0.3);
+            color: var(--color-danger);
+        }
+
+        .message.success {
+            background: rgba(52, 211, 153, 0.1);
+            border: 1px solid rgba(52, 211, 153, 0.3);
+            color: var(--color-success);
+        }
+
+        .message.show { display: block; }
+
+        .back-link {
+            text-align: center;
+            margin-top: 1.5rem;
+        }
+
+        .back-link a {
+            color: var(--color-primary-500);
+            text-decoration: none;
+            font-size: 0.875rem;
+        }
+
+        .back-link a:hover { text-decoration: underline; }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+            margin-right: 0.5rem;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="register-container">
+        <div class="register-card">
+            <div class="register-header">
+                <div class="register-logo">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                    </svg>
+                </div>
+                <h1 class="register-title">Create Account</h1>
+                <p class="register-subtitle">Use your invite code to register</p>
+            </div>
+
+            <div id="message" class="message"></div>
+
+            <form id="register-form">
+                <div class="form-group">
+                    <label class="form-label" for="inviteCode">Invite Code</label>
+                    <input type="text" id="inviteCode" class="form-input" placeholder="Enter your invite code" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="username">Username</label>
+                    <input type="text" id="username" class="form-input" placeholder="Choose a username" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="email">Email (optional)</label>
+                    <input type="email" id="email" class="form-input" placeholder="Enter your email">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <input type="password" id="password" class="form-input" placeholder="Create a password" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="confirmPassword">Confirm Password</label>
+                    <input type="password" id="confirmPassword" class="form-input" placeholder="Confirm your password" required>
+                </div>
+
+                <button type="submit" class="btn" id="submit-btn">
+                    Create Account
+                </button>
+            </form>
+
+            <div class="back-link">
+                <a href="login">Already have an account? Sign in</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('register-form');
+        const messageDiv = document.getElementById('message');
+        const submitBtn = document.getElementById('submit-btn');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const inviteCode = document.getElementById('inviteCode').value;
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (password !== confirmPassword) {
+                messageDiv.textContent = 'Passwords do not match';
+                messageDiv.className = 'message error show';
+                return;
+            }
+
+            messageDiv.classList.remove('show');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loading"></span> Creating account...';
+
+            try {
+                const basePath = window.location.pathname.replace(/\/register\/?$/, '');
+                const response = await fetch(basePath + '/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ inviteCode, username, email, password }),
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    messageDiv.textContent = 'Account created! Redirecting to login...';
+                    messageDiv.className = 'message success show';
+                    setTimeout(() => {
+                        window.location.href = basePath + '/login';
+                    }, 2000);
+                } else {
+                    messageDiv.textContent = data.error || 'Registration failed';
+                    messageDiv.className = 'message error show';
+                }
+            } catch (err) {
+                messageDiv.textContent = 'Connection error. Please try again.';
+                messageDiv.className = 'message error show';
+            }
+
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Create Account';
+        });
+    </script>
+</body>
+</html>

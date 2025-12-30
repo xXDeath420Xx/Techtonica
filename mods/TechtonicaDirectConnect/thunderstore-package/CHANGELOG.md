@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.18
+- Added scene detection - checks if you're in game world before connecting
+- Attempts to trigger JoinMultiplayerAsClient if connecting from main menu
+- Logs all loaded scenes for debugging
+- Shows helpful message if not in game world
+
 ## 1.0.17
 - Added patches for NetworkedPlayer.OnStartClient() and OnStartLocalPlayer()
 - These methods crash when connecting because the player spawns before scene objects exist
