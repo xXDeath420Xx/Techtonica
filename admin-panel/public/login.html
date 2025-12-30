@@ -255,7 +255,8 @@
             submitBtn.innerHTML = '<span class="loading"></span> Signing in...';
 
             try {
-                const response = await fetch('/api/auth/login', {
+                const basePath = window.location.pathname.replace(/\/login\/?$/, '');
+                const response = await fetch(basePath + '/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password }),
@@ -265,7 +266,7 @@
                 const data = await response.json();
 
                 if (response.ok && data.success) {
-                    window.location.href = '/';
+                    window.location.href = basePath + '/';
                 } else {
                     errorDiv.textContent = data.error || 'Login failed';
                     errorDiv.classList.add('show');

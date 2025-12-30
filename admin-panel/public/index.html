@@ -471,6 +471,7 @@
     <div class="toast-container" id="toast-container"></div>
 
     <script>
+        const basePath = window.location.pathname.replace(/\/$/, '');
         let currentUser = null;
         let currentLogType = 'bepinex';
         let socket = null;
@@ -486,8 +487,8 @@
 
         async function loadCurrentUser() {
             try {
-                const response = await fetch('/api/auth/me', { credentials: 'include' });
-                if (!response.ok) { window.location.href = '/login'; return; }
+                const response = await fetch(basePath + '/api/auth/me', { credentials: 'include' });
+                if (!response.ok) { window.location.href = basePath + '/login'; return; }
                 const data = await response.json();
                 currentUser = data.user;
                 document.getElementById('user-name').textContent = currentUser.username;
@@ -497,7 +498,7 @@
                     document.getElementById('admin-nav').style.display = 'block';
                     loadUsers();
                 }
-            } catch (err) { window.location.href = '/login'; }
+            } catch (err) { window.location.href = basePath + '/login'; }
         }
 
         function setupNavigation() {
@@ -529,7 +530,7 @@
 
         async function refreshStatus() {
             try {
-                const response = await fetch('/api/status', { credentials: 'include' });
+                const response = await fetch(basePath + '/api/status', { credentials: 'include' });
                 const data = await response.json();
                 updateServerStatus(data.status);
                 document.getElementById('server-uptime').textContent = formatUptime(data.uptime);
@@ -577,7 +578,7 @@
         async function startServer(savePath = '') {
             try {
                 showToast('Starting server...', 'info');
-                const response = await fetch('/api/server/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ savePath }), credentials: 'include' });
+                const response = await fetch(basePath + '/api/server/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ savePath }), credentials: 'include' });
                 const data = await response.json();
                 if (data.success) showToast('Server starting...', 'success');
                 else showToast(data.message || 'Failed to start server', 'error');
@@ -587,7 +588,7 @@
         async function stopServer() {
             try {
                 showToast('Stopping server...', 'info');
-                const response = await fetch('/api/server/stop', { method: 'POST', credentials: 'include' });
+                const response = await fetch(basePath + '/api/server/stop', { method: 'POST', credentials: 'include' });
                 const data = await response.json();
                 if (data.success) showToast('Server stopped', 'success');
                 else showToast(data.message || 'Failed to stop server', 'error');
@@ -598,7 +599,7 @@
 
         async function loadSaves() {
             try {
-                const response = await fetch('/api/saves', { credentials: 'include' });
+                const response = await fetch(basePath + '/api/saves', { credentials: 'include' });
                 const data = await response.json();
                 const savesHtml = data.saves.map(save => `<div class="save-item" onclick="selectSave(this, '${save.path}')"><div class="save-info"><div class="save-name">${save.name}</div><div class="save-meta">${formatSize(save.size)} - ${formatDate(save.modified)}</div></div><button class="btn btn-success" onclick="event.stopPropagation(); startServer('${save.path}')">Start with this save</button></div>`).join('');
                 document.getElementById('saves-list').innerHTML = savesHtml || '<p style="color: var(--color-text-muted);">No save files found</p>';
@@ -666,7 +667,7 @@
                 Client: { ConnectAddress: '51.81.155.59:6968' }
             };
             try {
-                const response = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(config), credentials: 'include' });
+                const response = await fetch(basePath + '/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(config), credentials: 'include' });
                 const data = await response.json();
                 if (data.success) showToast('Configuration saved!', 'success');
                 else showToast('Failed to save configuration', 'error');
@@ -675,7 +676,7 @@
 
         async function loadUsers() {
             try {
-                const response = await fetch('/api/users', { credentials: 'include' });
+                const response = await fetch(basePath + '/api/users', { credentials: 'include' });
                 if (!response.ok) return;
                 const data = await response.json();
                 const tbody = document.getElementById('users-tbody');
@@ -691,7 +692,7 @@
             const password = document.getElementById('new-password').value;
             const role = document.getElementById('new-role').value;
             try {
-                const response = await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password, role }), credentials: 'include' });
+                const response = await fetch(basePath + '/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password, role }), credentials: 'include' });
                 const data = await response.json();
                 if (data.success) { showToast('User created successfully', 'success'); closeModal('add-user-modal'); loadUsers(); }
                 else showToast(data.error || 'Failed to create user', 'error');
@@ -708,7 +709,7 @@
             } catch (err) { showToast('Error deleting user', 'error'); }
         }
 
-        async function logout() { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); window.location.href = '/login'; }
+        async function logout() { await fetch(basePath + '/api/auth/logout', { method: 'POST', credentials: 'include' }); window.location.href = basePath + '/login'; }
 
         function showToast(message, type = 'info') {
             const container = document.getElementById('toast-container');

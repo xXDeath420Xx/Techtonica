@@ -23,6 +23,7 @@ const CONFIG = {
     savesDir: '/home/death/techtonica-server/saves',
     usersFile: '/home/death/techtonica-server/admin-panel/users.json',
     port: 6969,
+    basePath: '/techtonica-admin', // Base path for reverse proxy
     // SSL certificates (for HTTPS via certifriedmultitool.com)
     sslCert: '/etc/letsencrypt/live/certifriedmultitool.com/fullchain.pem',
     sslKey: '/etc/letsencrypt/live/certifriedmultitool.com/privkey.pem'
@@ -90,6 +91,14 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Strip basePath prefix from incoming requests (for reverse proxy)
+app.use((req, res, next) => {
+    if (req.path.startsWith(CONFIG.basePath)) {
+        req.url = req.url.replace(CONFIG.basePath, '') || '/';
+    }
+    next();
+});
+
 // Authentication middleware
 function requireAuth(req, res, next) {
     if (req.session && req.session.user) {
@@ -98,7 +107,7 @@ function requireAuth(req, res, next) {
     if (req.xhr || req.path.startsWith('/api/')) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
-    return res.redirect('/login');
+    return res.redirect(CONFIG.basePath + '/login');
 }
 
 function requireAdmin(req, res, next) {
@@ -124,7 +133,7 @@ app.use('/fonts', express.static(path.join(__dirname, 'public/fonts')));
 // Login page
 app.get('/login', (req, res) => {
     if (req.session && req.session.user) {
-        return res.redirect('/');
+        return res.redirect(CONFIG.basePath + '/');
     }
     res.sendFile(path.join(__dirname, 'public/login.html'));
 });
