@@ -1,6 +1,7 @@
 using System;
 using System.Net;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
@@ -12,6 +13,7 @@ using UnityEngine;
 namespace TechtonicaDirectConnect
 {
     [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
+    [BepInProcess("Techtonica.exe")]
     public class Plugin : BaseUnityPlugin
     {
         public static ManualLogSource Log { get; private set; }
@@ -20,6 +22,7 @@ namespace TechtonicaDirectConnect
         public static ConfigEntry<KeyCode> ConnectHotkey { get; private set; }
 
         private static Plugin _instance;
+        public static Plugin Instance => _instance;
         private Harmony _harmony;
         private bool _showConnectUI = false;
         private string _serverAddress = "";
@@ -37,15 +40,31 @@ namespace TechtonicaDirectConnect
         private static Transport _originalTransport;
         private static bool _isDirectConnectActive;
 
+        // Windows API for keyboard input (bypasses Rewired)
+        [DllImport("user32.dll")]
+        private static extern short GetAsyncKeyState(int vKey);
+
+        private const int VK_F11 = 0x7A;
+        private const int VK_ESCAPE = 0x1B;
+
+        private bool _f11WasPressed = false;
+        private bool _escWasPressed = false;
+        private float _debugTimer = 0f;
+        private bool _updateRunning = false;
+        private int _lastToggleFrame = -1; // Prevent double-toggle in same frame
+
         private void Awake()
         {
             _instance = this;
             Log = Logger;
 
+            // Make this object persist and be hidden
+            this.gameObject.hideFlags = HideFlags.HideAndDontSave;
+
             // Config
             DefaultPort = Config.Bind("General", "DefaultPort", 6968, "Default server port");
             LastServerAddress = Config.Bind("General", "LastServerAddress", "", "Last connected server address");
-            ConnectHotkey = Config.Bind("General", "ConnectHotkey", KeyCode.F8, "Hotkey to open connect dialog");
+            ConnectHotkey = Config.Bind("General", "ConnectHotkey", KeyCode.F11, "Hotkey to open connect dialog");
 
             // Load last server
             _serverAddress = LastServerAddress.Value;
@@ -55,31 +74,81 @@ namespace TechtonicaDirectConnect
             _harmony = new Harmony(PluginInfo.PLUGIN_GUID);
             _harmony.PatchAll(Assembly.GetExecutingAssembly());
 
+            // Apply null safety patches for networked player objects
+            NullSafetyPatches.ApplyPatches(_harmony);
+
             Log.LogInfo($"[{PluginInfo.PLUGIN_NAME}] v{PluginInfo.PLUGIN_VERSION} loaded!");
-            Log.LogInfo($"[{PluginInfo.PLUGIN_NAME}] Press {ConnectHotkey.Value} to open connect dialog");
+            Log.LogInfo($"[{PluginInfo.PLUGIN_NAME}] Press F11 to open connect dialog");
         }
 
+        // Update runs directly on the plugin (like ConsoleCommands mod)
         private void Update()
         {
-            // Toggle connect UI with hotkey
-            if (Input.GetKeyDown(ConnectHotkey.Value))
+            // Log once to confirm Update is running
+            if (!_updateRunning)
             {
+                _updateRunning = true;
+                Log.LogInfo("[DirectConnect] Update() is running!");
+            }
+
+            // Try Unity's Input first (works for some keys even with Rewired)
+            bool f11Unity = Input.GetKeyDown(KeyCode.F11);
+            bool escUnity = Input.GetKeyDown(KeyCode.Escape);
+
+            // Also try Windows API as backup
+            bool f11Win = (GetAsyncKeyState(VK_F11) & 0x8000) != 0;
+            bool escWin = (GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0;
+
+            // Debug: log every 5 seconds
+            _debugTimer += Time.deltaTime;
+            if (_debugTimer > 5f)
+            {
+                _debugTimer = 0f;
+                Log.LogInfo($"[DirectConnect] F11: Unity={f11Unity}, Win={f11Win}, UI={_showConnectUI}");
+            }
+
+            // F11 toggle - try both methods (but skip if OnGUI already handled this frame)
+            bool f11Triggered = f11Unity || (f11Win && !_f11WasPressed);
+            if (f11Triggered && Time.frameCount != _lastToggleFrame)
+            {
+                _lastToggleFrame = Time.frameCount;
                 _showConnectUI = !_showConnectUI;
                 if (_showConnectUI)
                 {
                     _statusMessage = "";
                 }
+                Log.LogInfo($"[DirectConnect] UI toggled via Update: {_showConnectUI}");
             }
+            _f11WasPressed = f11Win;
 
             // ESC to close
-            if (_showConnectUI && Input.GetKeyDown(KeyCode.Escape))
+            bool escTriggered = escUnity || (escWin && !_escWasPressed);
+            if (_showConnectUI && escTriggered)
             {
                 _showConnectUI = false;
+                Log.LogInfo("[DirectConnect] UI closed via ESC");
             }
+            _escWasPressed = escWin;
         }
 
+        // OnGUI runs directly on the plugin
         private void OnGUI()
         {
+            // Check for F11 via Event.current (only toggle once per frame)
+            var e = Event.current;
+            if (e != null && e.type == EventType.KeyDown && e.keyCode == KeyCode.F11)
+            {
+                // Prevent multiple toggles in the same frame (OnGUI is called multiple times)
+                if (Time.frameCount != _lastToggleFrame)
+                {
+                    _lastToggleFrame = Time.frameCount;
+                    _showConnectUI = !_showConnectUI;
+                    if (_showConnectUI) _statusMessage = "";
+                    Log.LogInfo($"[DirectConnect] UI toggled via Event.current: {_showConnectUI}");
+                }
+                e.Use();
+            }
+
             if (!_showConnectUI) return;
 
             InitStyles();
@@ -260,13 +329,48 @@ namespace TechtonicaDirectConnect
 
         private System.Collections.IEnumerator CheckConnection()
         {
-            float timeout = 10f;
+            float timeout = 15f;
             float elapsed = 0f;
 
             while (elapsed < timeout)
             {
                 if (NetworkClient.isConnected)
                 {
+                    Log.LogInfo("[DirectConnect] Connected! Sending ready signal...");
+                    _statusMessage = "Connected! Joining game...";
+
+                    // Tell the server we're ready to receive spawned objects
+                    if (!NetworkClient.ready)
+                    {
+                        try
+                        {
+                            NetworkClient.Ready();
+                            Log.LogInfo("[DirectConnect] Sent Ready signal");
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.LogWarning($"[DirectConnect] Ready failed: {ex.Message}");
+                        }
+                    }
+
+                    // Wait a moment for server to process
+                    yield return new WaitForSeconds(0.5f);
+
+                    // Request player spawning if available
+                    try
+                    {
+                        if (NetworkClient.ready && NetworkClient.localPlayer == null)
+                        {
+                            // Try to add player - this triggers server-side player spawning
+                            NetworkClient.AddPlayer();
+                            Log.LogInfo("[DirectConnect] Requested player spawn");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.LogWarning($"[DirectConnect] AddPlayer failed: {ex.Message}");
+                    }
+
                     _statusMessage = "Connected!";
                     _isConnecting = false;
                     yield return new WaitForSeconds(1f);
@@ -404,6 +508,80 @@ namespace TechtonicaDirectConnect
     {
         public const string PLUGIN_GUID = "com.certifried.techtonicadirectconnect";
         public const string PLUGIN_NAME = "Techtonica Direct Connect";
-        public const string PLUGIN_VERSION = "1.0.0";
+        public const string PLUGIN_VERSION = "1.0.16";
+    }
+
+    /// <summary>
+    /// Patches to prevent null reference exceptions when connecting to dedicated servers.
+    /// These errors occur because the game expects local player references that don't exist
+    /// in the multiplayer context until fully joined.
+    /// </summary>
+    public static class NullSafetyPatches
+    {
+        private static bool _patchesApplied = false;
+
+        public static void ApplyPatches(Harmony harmony)
+        {
+            if (_patchesApplied) return;
+
+            try
+            {
+                // Patch NetworkedPlayer.Update
+                var networkedPlayerType = AccessTools.TypeByName("NetworkedPlayer");
+                if (networkedPlayerType != null)
+                {
+                    var updateMethod = AccessTools.Method(networkedPlayerType, "Update");
+                    if (updateMethod != null)
+                    {
+                        var prefix = new HarmonyMethod(typeof(NullSafetyPatches), nameof(Skip_Prefix));
+                        harmony.Patch(updateMethod, prefix: prefix);
+                        Plugin.Log.LogInfo("[DirectConnect] Patched NetworkedPlayer.Update to skip");
+                    }
+                }
+                else
+                {
+                    Plugin.Log.LogWarning("[DirectConnect] NetworkedPlayer type not found");
+                }
+
+                // Patch ThirdPersonDisplayAnimator.Update and UpdateSillyStuff
+                var animatorType = AccessTools.TypeByName("ThirdPersonDisplayAnimator");
+                if (animatorType != null)
+                {
+                    var updateMethod = AccessTools.Method(animatorType, "Update");
+                    if (updateMethod != null)
+                    {
+                        var prefix = new HarmonyMethod(typeof(NullSafetyPatches), nameof(Skip_Prefix));
+                        harmony.Patch(updateMethod, prefix: prefix);
+                        Plugin.Log.LogInfo("[DirectConnect] Patched ThirdPersonDisplayAnimator.Update to skip");
+                    }
+
+                    var sillyMethod = AccessTools.Method(animatorType, "UpdateSillyStuff");
+                    if (sillyMethod != null)
+                    {
+                        var prefix = new HarmonyMethod(typeof(NullSafetyPatches), nameof(Skip_Prefix));
+                        harmony.Patch(sillyMethod, prefix: prefix);
+                        Plugin.Log.LogInfo("[DirectConnect] Patched ThirdPersonDisplayAnimator.UpdateSillyStuff to skip");
+                    }
+                }
+                else
+                {
+                    Plugin.Log.LogWarning("[DirectConnect] ThirdPersonDisplayAnimator type not found");
+                }
+
+                _patchesApplied = true;
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log.LogError($"[DirectConnect] Failed to apply null safety patches: {ex}");
+            }
+        }
+
+        /// <summary>
+        /// Prefix that skips the original method entirely
+        /// </summary>
+        public static bool Skip_Prefix()
+        {
+            return false;
+        }
     }
 }

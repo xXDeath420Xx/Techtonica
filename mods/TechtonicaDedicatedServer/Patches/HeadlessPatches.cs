@@ -34,6 +34,10 @@ namespace TechtonicaDedicatedServer.Patches
                 // Disable UI updates
                 PatchUI(harmony);
 
+                // Patch NetworkedPlayer and ThirdPersonDisplayAnimator to prevent null refs in dedicated server mode
+                PatchNetworkedPlayer(harmony);
+                PatchThirdPersonDisplayAnimator(harmony);
+
                 _patchesApplied = true;
                 Plugin.Log.LogInfo("[HeadlessPatches] Headless patches applied");
             }
@@ -128,6 +132,66 @@ namespace TechtonicaDedicatedServer.Patches
             }
         }
 
+        private static void PatchNetworkedPlayer(Harmony harmony)
+        {
+            try
+            {
+                var networkedPlayerType = AccessTools.TypeByName("NetworkedPlayer");
+                if (networkedPlayerType == null)
+                {
+                    Plugin.Log.LogWarning("[HeadlessPatches] NetworkedPlayer type not found");
+                    return;
+                }
+
+                var updateMethod = AccessTools.Method(networkedPlayerType, "Update");
+                if (updateMethod != null)
+                {
+                    var prefix = new HarmonyMethod(typeof(HeadlessPatches), nameof(NetworkedPlayer_Update_Prefix));
+                    harmony.Patch(updateMethod, prefix: prefix);
+                    Plugin.Log.LogInfo("[HeadlessPatches] NetworkedPlayer.Update patched to skip");
+                }
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log.LogWarning($"[HeadlessPatches] NetworkedPlayer patch failed: {ex.Message}");
+            }
+        }
+
+        private static void PatchThirdPersonDisplayAnimator(Harmony harmony)
+        {
+            try
+            {
+                var animatorType = AccessTools.TypeByName("ThirdPersonDisplayAnimator");
+                if (animatorType == null)
+                {
+                    Plugin.Log.LogWarning("[HeadlessPatches] ThirdPersonDisplayAnimator type not found");
+                    return;
+                }
+
+                // Patch Update method
+                var updateMethod = AccessTools.Method(animatorType, "Update");
+                if (updateMethod != null)
+                {
+                    var prefix = new HarmonyMethod(typeof(HeadlessPatches), nameof(ThirdPersonDisplayAnimator_Update_Prefix));
+                    harmony.Patch(updateMethod, prefix: prefix);
+                    Plugin.Log.LogInfo("[HeadlessPatches] ThirdPersonDisplayAnimator.Update patched to skip");
+                }
+
+                // Also patch UpdateSillyStuff if it exists
+                var sillyMethod = AccessTools.Method(animatorType, "UpdateSillyStuff");
+                if (sillyMethod != null)
+                {
+                    var sillyPrefix = new HarmonyMethod(typeof(HeadlessPatches), nameof(ThirdPersonDisplayAnimator_UpdateSillyStuff_Prefix));
+                    harmony.Patch(sillyMethod, prefix: sillyPrefix);
+                    Plugin.Log.LogInfo("[HeadlessPatches] ThirdPersonDisplayAnimator.UpdateSillyStuff patched to skip");
+                }
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log.LogWarning($"[HeadlessPatches] ThirdPersonDisplayAnimator patch failed: {ex.Message}");
+            }
+        }
+
         // Patch methods
         public static bool CursorLock_Prefix()
         {
@@ -148,6 +212,35 @@ namespace TechtonicaDedicatedServer.Patches
         public static bool SkipMethod_Prefix()
         {
             // Skip the method entirely
+            return false;
+        }
+
+        /// <summary>
+        /// Prefix for NetworkedPlayer.Update - skip entirely in dedicated server mode
+        /// </summary>
+        public static bool NetworkedPlayer_Update_Prefix()
+        {
+            // Skip this method entirely in dedicated server mode
+            // NetworkedPlayer.Update has null references without a local player
+            return false;
+        }
+
+        /// <summary>
+        /// Prefix for ThirdPersonDisplayAnimator.Update - skip entirely in dedicated server mode
+        /// </summary>
+        public static bool ThirdPersonDisplayAnimator_Update_Prefix()
+        {
+            // Skip this method entirely in dedicated server mode
+            // ThirdPersonDisplayAnimator.Update has null references without proper player setup
+            return false;
+        }
+
+        /// <summary>
+        /// Prefix for ThirdPersonDisplayAnimator.UpdateSillyStuff - skip entirely
+        /// </summary>
+        public static bool ThirdPersonDisplayAnimator_UpdateSillyStuff_Prefix()
+        {
+            // Skip this method entirely
             return false;
         }
     }

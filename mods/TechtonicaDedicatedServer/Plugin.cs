@@ -331,7 +331,7 @@ namespace TechtonicaDedicatedServer
             MaxPlayers = Config.Bind(
                 "Server",
                 "MaxPlayers",
-                8,
+                16,
                 "Maximum number of players allowed on the server"
             );
 

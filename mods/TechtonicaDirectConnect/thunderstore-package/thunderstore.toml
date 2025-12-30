@@ -1,0 +1,38 @@
+[config]
+schemaVersion = "0.0.1"
+
+[package]
+namespace = "CertiFried"
+name = "TechtonicaDirectConnect"
+versionNumber = "1.0.16"
+description = "Connect to Techtonica dedicated servers via direct IP. Bypass Steam lobbies and join 24/7 community servers!"
+websiteUrl = "https://github.com/xXDeath420Xx/Techtonica"
+containsNsfwContent = false
+
+[package.dependencies]
+BepInEx-BepInExPack = "5.4.2100"
+
+[build]
+icon = "./icon.png"
+readme = "./README.md"
+changelog = "./CHANGELOG.md"
+outdir = "./build"
+
+[[build.copy]]
+source = "./TechtonicaDirectConnect.dll"
+target = "/plugins/"
+
+[[build.copy]]
+source = "./kcp2k.dll"
+target = "/plugins/"
+
+[[build.copy]]
+source = "./CHANGELOG.md"
+target = "/"
+
+[publish]
+repository = "https://thunderstore.io"
+communities = ["techtonica"]
+
+[publish.categories]
+techtonica = ["mods"]
