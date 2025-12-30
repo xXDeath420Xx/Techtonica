@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  techtonica:
+    build: .
+    container_name: techtonica-server
+    restart: unless-stopped
+
+    # Environment variables
+    environment:
+      - STEAM_USER=${STEAM_USER:-}
+      - STEAM_PASS=${STEAM_PASS:-}
+      # Set to 1 to skip game update on start
+      - SKIP_UPDATE=${SKIP_UPDATE:-0}
+      # Virtual display settings
+      - DISPLAY=:99
+      - WINEDEBUG=-all
+      # Game settings
+      - SAVE_NAME=${SAVE_NAME:-server_world}
+      - PUBLIC_LOBBY=${PUBLIC_LOBBY:-0}
+
+    # Port mappings
+    ports:
+      # Game traffic (Steam P2P - may use both TCP/UDP)
+      - "6968:6968/udp"
+      - "6968:6968/tcp"
+      # Management API (future)
+      - "6969:6969/tcp"
+
+    # Persistent volumes
+    volumes:
+      # Steam credentials cache (survives container rebuild)
+      - steam_cache:/home/steam/Steam
+      # Wine prefix (game installation)
+      - wine_prefix:/home/steam/.wine
+      # Game installation
+      - ./game:/opt/techtonica/game
+      # Save files
+      - ./saves:/opt/techtonica/saves
+      # BepInEx mods
+      - ./bepinex:/opt/techtonica/bepinex
+      # Custom mods
+      - ./mods:/opt/techtonica/mods
+      # Logs
+      - ./logs:/opt/techtonica/logs
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 4G
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+    # Wait for network
+    networks:
+      - techtonica-net
+
+networks:
+  techtonica-net:
+    driver: bridge
+
+volumes:
+  steam_cache:
+    driver: local
+  wine_prefix:
+    driver: local

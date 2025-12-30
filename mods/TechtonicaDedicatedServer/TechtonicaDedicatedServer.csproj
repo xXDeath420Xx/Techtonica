@@ -1,0 +1,88 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <AssemblyName>TechtonicaDedicatedServer</AssemblyName>
+    <RootNamespace>TechtonicaDedicatedServer</RootNamespace>
+    <Version>0.1.0</Version>
+    <Authors>Community</Authors>
+    <Description>Dedicated server support for Techtonica</Description>
+    <LangVersion>9.0</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Nullable>disable</Nullable>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <!-- Output to the mods folder for testing -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <OutputPath>bin/Debug/</OutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <OutputPath>bin/Release/</OutputPath>
+  </PropertyGroup>
+
+  <!-- Game installation path - Linux paths -->
+  <PropertyGroup>
+    <GamePath>/home/death/techtonica-server/game/Techtonica</GamePath>
+    <ManagedPath>$(GamePath)/Techtonica_Data/Managed</ManagedPath>
+    <BepInExPath>$(GamePath)/BepInEx</BepInExPath>
+  </PropertyGroup>
+
+  <!-- BepInEx References -->
+  <ItemGroup>
+    <Reference Include="BepInEx">
+      <HintPath>$(BepInExPath)/core/BepInEx.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(BepInExPath)/core/0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Game References -->
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(ManagedPath)/Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Mirror">
+      <HintPath>$(ManagedPath)/Mirror.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Mirror.Components">
+      <HintPath>$(ManagedPath)/Mirror.Components.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="kcp2k">
+      <HintPath>$(ManagedPath)/kcp2k.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="FizzyFacepunch">
+      <HintPath>$(ManagedPath)/FizzyFacepunch.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Facepunch.Steamworks.Win64">
+      <HintPath>$(ManagedPath)/Facepunch.Steamworks.Win64.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Unity References -->
+  <ItemGroup>
+    <Reference Include="UnityEngine">
+      <HintPath>$(ManagedPath)/UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(ManagedPath)/UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.InputLegacyModule">
+      <HintPath>$(ManagedPath)/UnityEngine.InputLegacyModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

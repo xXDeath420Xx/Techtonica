@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Techtonica Server Manager - CertiFried</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        :root {
+            --color-dark-900: #0b0f11;
+            --color-dark-800: #0f1316;
+            --color-dark-700: #131920;
+            --color-dark-600: #1a2027;
+            --color-dark-500: #22292f;
+            --color-dark-400: rgba(255, 255, 255, 0.08);
+            --color-primary-500: #a78bfa;
+            --color-primary-600: #7c3aed;
+            --color-primary-400: #c4b5fd;
+            --color-accent-blue: #60a5fa;
+            --color-accent-green: #34d399;
+            --color-accent-red: #f87171;
+            --color-accent-orange: #fb923c;
+            --color-accent-yellow: #fbbf24;
+            --color-success: #34d399;
+            --color-danger: #f87171;
+            --color-warning: #fbbf24;
+            --color-info: #60a5fa;
+            --color-text-primary: #ffffff;
+            --color-text-secondary: rgba(255, 255, 255, 0.7);
+            --color-text-muted: rgba(255, 255, 255, 0.5);
+            --color-border-primary: rgba(255, 255, 255, 0.08);
+            --color-border-hover: rgba(255, 255, 255, 0.15);
+            --color-card-bg: rgba(255, 255, 255, 0.03);
+            --gradient-primary: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
+            --gradient-accent: linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%);
+            --gradient-success: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+            --gradient-danger: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+            --shadow-glow: 0 0 25px rgba(167, 139, 250, 0.35);
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--color-dark-900);
+            color: var(--color-text-primary);
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+
+        .app-container { display: flex; min-height: 100vh; }
+
+        .sidebar {
+            width: 260px;
+            background: var(--color-dark-800);
+            border-right: 1px solid var(--color-border-primary);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--color-border-primary);
+        }
+
+        .sidebar-brand { display: flex; align-items: center; gap: 0.75rem; }
+
+        .sidebar-logo {
+            width: 40px;
+            height: 40px;
+            background: var(--gradient-accent);
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .sidebar-title { font-size: 1.125rem; font-weight: 700; }
+        .sidebar-subtitle { font-size: 0.75rem; color: var(--color-text-muted); }
+
+        .sidebar-nav { flex: 1; padding: 1rem 0.75rem; overflow-y: auto; }
+        .nav-section { margin-bottom: 1.5rem; }
+        .nav-section-title { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); padding: 0 0.75rem; margin-bottom: 0.5rem; }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            color: var(--color-text-secondary);
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .nav-item:hover { background: var(--color-card-bg); color: var(--color-text-primary); }
+        .nav-item.active { background: rgba(167, 139, 250, 0.15); color: var(--color-primary-500); }
+        .nav-icon { width: 20px; height: 20px; opacity: 0.8; }
+
+        .sidebar-footer { padding: 1rem; border-top: 1px solid var(--color-border-primary); }
+        .user-info { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; }
+        .user-avatar { width: 36px; height: 36px; background: var(--gradient-primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.875rem; }
+        .user-details { flex: 1; }
+        .user-name { font-weight: 500; font-size: 0.875rem; }
+        .user-role { font-size: 0.75rem; color: var(--color-text-muted); }
+
+        .main-content { flex: 1; margin-left: 260px; min-height: 100vh; }
+
+        .topbar {
+            height: 64px;
+            background: var(--color-dark-800);
+            border-bottom: 1px solid var(--color-border-primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.5rem;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .topbar-title { font-size: 1.25rem; font-weight: 600; }
+        .topbar-actions { display: flex; align-items: center; gap: 0.75rem; }
+        .content { padding: 1.5rem; max-width: 1400px; }
+
+        .card {
+            background: var(--color-dark-700);
+            border: 1px solid var(--color-border-primary);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+        .card-title { font-size: 1rem; font-weight: 600; }
+
+        .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+
+        .status-card {
+            background: var(--color-dark-700);
+            border: 1px solid var(--color-border-primary);
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .status-icon { width: 48px; height: 48px; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; }
+        .status-icon.running { background: rgba(52, 211, 153, 0.15); color: var(--color-success); }
+        .status-icon.stopped { background: rgba(248, 113, 113, 0.15); color: var(--color-danger); }
+        .status-icon.starting { background: rgba(251, 191, 36, 0.15); color: var(--color-warning); }
+        .status-icon.info { background: rgba(96, 165, 250, 0.15); color: var(--color-info); }
+        .status-icon.purple { background: rgba(167, 139, 250, 0.15); color: var(--color-primary-500); }
+
+        .status-info h3 { font-size: 0.75rem; font-weight: 500; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem; }
+        .status-value { font-size: 1.5rem; font-weight: 700; }
+
+        .status-badge { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; }
+        .status-badge.running { background: rgba(52, 211, 153, 0.15); color: var(--color-success); }
+        .status-badge.stopped { background: rgba(248, 113, 113, 0.15); color: var(--color-danger); }
+        .status-badge.starting { background: rgba(251, 191, 36, 0.15); color: var(--color-warning); }
+
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; animation: pulse 2s infinite; }
+        .status-dot.running { background: var(--color-success); }
+        .status-dot.stopped { background: var(--color-danger); }
+        .status-dot.starting { background: var(--color-warning); }
+
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.625rem 1rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary { background: var(--gradient-primary); color: white; }
+        .btn-primary:hover { box-shadow: var(--shadow-glow); transform: translateY(-1px); }
+        .btn-success { background: var(--gradient-success); color: white; }
+        .btn-danger { background: var(--gradient-danger); color: white; }
+        .btn-secondary { background: var(--color-dark-600); color: var(--color-text-secondary); border: 1px solid var(--color-border-primary); }
+        .btn-secondary:hover { background: var(--color-dark-500); color: var(--color-text-primary); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+        .btn-group { display: flex; gap: 0.5rem; }
+
+        .console {
+            background: var(--color-dark-900);
+            border: 1px solid var(--color-border-primary);
+            border-radius: 0.5rem;
+            font-family: var(--font-mono);
+            font-size: 0.8125rem;
+            line-height: 1.6;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .console-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            background: var(--color-dark-800);
+            border-bottom: 1px solid var(--color-border-primary);
+            position: sticky;
+            top: 0;
+        }
+
+        .console-tabs { display: flex; gap: 0.5rem; }
+        .console-tab { padding: 0.375rem 0.75rem; border-radius: 0.25rem; font-size: 0.75rem; cursor: pointer; background: transparent; border: none; color: var(--color-text-muted); font-family: inherit; }
+        .console-tab.active { background: var(--color-primary-600); color: white; }
+        .console-content { padding: 1rem; white-space: pre-wrap; word-break: break-all; }
+        .console-line { color: var(--color-text-secondary); }
+        .console-line.info { color: var(--color-info); }
+        .console-line.warn { color: var(--color-warning); }
+        .console-line.error { color: var(--color-danger); }
+
+        .config-section { margin-bottom: 1.5rem; }
+        .config-section-title { font-size: 0.875rem; font-weight: 600; color: var(--color-primary-400); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        .config-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+        .config-item { display: flex; flex-direction: column; gap: 0.5rem; }
+        .config-label { font-size: 0.8125rem; color: var(--color-text-secondary); }
+        .config-input { padding: 0.625rem 0.75rem; background: var(--color-dark-800); border: 1px solid var(--color-border-primary); border-radius: 0.375rem; color: var(--color-text-primary); font-family: var(--font-mono); font-size: 0.875rem; }
+        .config-input:focus { outline: none; border-color: var(--color-primary-500); }
+        .config-toggle { display: flex; align-items: center; gap: 0.75rem; }
+        .toggle-switch { width: 44px; height: 24px; background: var(--color-dark-600); border-radius: 12px; position: relative; cursor: pointer; transition: background 0.2s; }
+        .toggle-switch.active { background: var(--color-primary-600); }
+        .toggle-switch::after { content: ''; position: absolute; width: 18px; height: 18px; background: white; border-radius: 50%; top: 3px; left: 3px; transition: transform 0.2s; }
+        .toggle-switch.active::after { transform: translateX(20px); }
+
+        .saves-list { display: flex; flex-direction: column; gap: 0.5rem; }
+        .save-item { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; background: var(--color-dark-800); border: 1px solid var(--color-border-primary); border-radius: 0.5rem; cursor: pointer; transition: border-color 0.2s; }
+        .save-item:hover { border-color: var(--color-border-hover); }
+        .save-item.selected { border-color: var(--color-primary-500); background: rgba(167, 139, 250, 0.05); }
+        .save-info { display: flex; flex-direction: column; }
+        .save-name { font-weight: 500; font-size: 0.875rem; }
+        .save-meta { font-size: 0.75rem; color: var(--color-text-muted); }
+
+        .users-table { width: 100%; border-collapse: collapse; }
+        .users-table th, .users-table td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--color-border-primary); }
+        .users-table th { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); }
+        .users-table tr:hover { background: var(--color-card-bg); }
+        .role-badge { display: inline-flex; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 500; }
+        .role-badge.admin { background: rgba(167, 139, 250, 0.15); color: var(--color-primary-500); }
+        .role-badge.manager { background: rgba(96, 165, 250, 0.15); color: var(--color-info); }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.2s; }
+        .modal-overlay.show { opacity: 1; visibility: visible; }
+        .modal { background: var(--color-dark-700); border: 1px solid var(--color-border-primary); border-radius: 0.75rem; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; transform: translateY(20px); transition: transform 0.2s; }
+        .modal-overlay.show .modal { transform: translateY(0); }
+        .modal-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-border-primary); display: flex; align-items: center; justify-content: space-between; }
+        .modal-title { font-size: 1.125rem; font-weight: 600; }
+        .modal-close { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: none; border: none; color: var(--color-text-muted); cursor: pointer; border-radius: 0.25rem; font-size: 1.5rem; }
+        .modal-close:hover { background: var(--color-card-bg); color: var(--color-text-primary); }
+        .modal-body { padding: 1.5rem; }
+        .modal-footer { padding: 1rem 1.5rem; border-top: 1px solid var(--color-border-primary); display: flex; justify-content: flex-end; gap: 0.75rem; }
+        .form-group { margin-bottom: 1.25rem; }
+        .form-label { display: block; font-size: 0.875rem; font-weight: 500; color: var(--color-text-secondary); margin-bottom: 0.5rem; }
+        .form-input, .form-select { width: 100%; padding: 0.625rem 0.75rem; background: var(--color-dark-800); border: 1px solid var(--color-border-primary); border-radius: 0.375rem; color: var(--color-text-primary); font-size: 0.875rem; font-family: inherit; }
+        .form-input:focus, .form-select:focus { outline: none; border-color: var(--color-primary-500); }
+
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        .toast-container { position: fixed; top: 1rem; right: 1rem; z-index: 1100; display: flex; flex-direction: column; gap: 0.5rem; }
+        .toast { padding: 1rem 1.25rem; background: var(--color-dark-700); border: 1px solid var(--color-border-primary); border-radius: 0.5rem; display: flex; align-items: center; gap: 0.75rem; animation: slideIn 0.3s ease; min-width: 280px; }
+        .toast.success { border-left: 3px solid var(--color-success); }
+        .toast.error { border-left: 3px solid var(--color-danger); }
+        .toast.info { border-left: 3px solid var(--color-info); }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        @media (max-width: 768px) { .sidebar { display: none; } .main-content { margin-left: 0; } .status-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand">
+                    <div class="sidebar-logo">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="sidebar-title">Techtonica</div>
+                        <div class="sidebar-subtitle">Server Manager</div>
+                    </div>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Server</div>
+                    <a class="nav-item active" data-tab="dashboard">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                        Dashboard
+                    </a>
+                    <a class="nav-item" data-tab="console">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                        Console
+                    </a>
+                    <a class="nav-item" data-tab="config">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                        Configuration
+                    </a>
+                    <a class="nav-item" data-tab="saves">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                        Save Files
+                    </a>
+                </div>
+                <div class="nav-section" id="admin-nav" style="display: none;">
+                    <div class="nav-section-title">Administration</div>
+                    <a class="nav-item" data-tab="users">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        User Management
+                    </a>
+                </div>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar" id="user-avatar">A</div>
+                    <div class="user-details">
+                        <div class="user-name" id="user-name">Admin</div>
+                        <div class="user-role" id="user-role">Administrator</div>
+                    </div>
+                </div>
+                <button class="btn btn-secondary" style="width: 100%; margin-top: 0.75rem;" onclick="logout()">Sign Out</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="topbar">
+                <h1 class="topbar-title" id="page-title">Dashboard</h1>
+                <div class="topbar-actions">
+                    <span class="status-badge" id="server-status-badge"><span class="status-dot stopped"></span> Checking...</span>
+                </div>
+            </header>
+
+            <div class="content">
+                <div class="tab-panel active" id="panel-dashboard">
+                    <div class="status-grid">
+                        <div class="status-card">
+                            <div class="status-icon" id="status-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                            </div>
+                            <div class="status-info"><h3>Server Status</h3><div class="status-value" id="server-status">Checking...</div></div>
+                        </div>
+                        <div class="status-card">
+                            <div class="status-icon info">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            </div>
+                            <div class="status-info"><h3>Uptime</h3><div class="status-value" id="server-uptime">--</div></div>
+                        </div>
+                        <div class="status-card">
+                            <div class="status-icon purple">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                            </div>
+                            <div class="status-info"><h3>Connect Address</h3><div class="status-value" style="font-size: 1rem;" id="connect-address">51.81.155.59:6968</div></div>
+                        </div>
+                        <div class="status-card">
+                            <div class="status-icon info">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                            </div>
+                            <div class="status-info"><h3>Port</h3><div class="status-value" id="server-port">6968</div></div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h2 class="card-title">Server Controls</h2></div>
+                        <div class="btn-group">
+                            <button class="btn btn-success" id="btn-start" onclick="startServer()">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> Start Server
+                            </button>
+                            <button class="btn btn-danger" id="btn-stop" onclick="stopServer()" disabled>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Stop Server
+                            </button>
+                            <button class="btn btn-secondary" id="btn-restart" onclick="restartServer()" disabled>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Restart
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h2 class="card-title">Quick Start with Save</h2></div>
+                        <div id="quick-saves" class="saves-list"><p style="color: var(--color-text-muted);">Loading saves...</p></div>
+                    </div>
+                </div>
+
+                <div class="tab-panel" id="panel-console">
+                    <div class="console">
+                        <div class="console-header">
+                            <div class="console-tabs">
+                                <button class="console-tab active" data-log="bepinex">BepInEx</button>
+                                <button class="console-tab" data-log="debug">Debug</button>
+                                <button class="console-tab" data-log="game">Game</button>
+                            </div>
+                            <button class="btn btn-secondary" onclick="refreshLogs()">Refresh</button>
+                        </div>
+                        <div class="console-content" id="console-output">Connecting to server...</div>
+                    </div>
+                </div>
+
+                <div class="tab-panel" id="panel-config">
+                    <div class="card">
+                        <div class="card-header"><h2 class="card-title">Server Configuration</h2><button class="btn btn-primary" onclick="saveConfig()">Save Changes</button></div>
+                        <div class="config-section">
+                            <h3 class="config-section-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg> Server Settings</h3>
+                            <div class="config-grid">
+                                <div class="config-item"><label class="config-label">Port</label><input type="number" class="config-input" id="config-port" value="6968"></div>
+                                <div class="config-item"><label class="config-label">Max Players</label><input type="number" class="config-input" id="config-maxplayers" value="8"></div>
+                                <div class="config-item"><label class="config-label">Password (optional)</label><input type="text" class="config-input" id="config-password" placeholder="Leave empty for no password"></div>
+                            </div>
+                        </div>
+                        <div class="config-section">
+                            <h3 class="config-section-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/></svg> Options</h3>
+                            <div class="config-grid">
+                                <div class="config-item"><div class="config-toggle"><div class="toggle-switch active" id="toggle-directconnect" onclick="toggleConfig(this)"></div><span class="config-label" style="margin: 0;">Enable Direct Connect</span></div></div>
+                                <div class="config-item"><div class="config-toggle"><div class="toggle-switch active" id="toggle-autostart" onclick="toggleConfig(this)"></div><span class="config-label" style="margin: 0;">Auto Start Server</span></div></div>
+                                <div class="config-item"><div class="config-toggle"><div class="toggle-switch active" id="toggle-headless" onclick="toggleConfig(this)"></div><span class="config-label" style="margin: 0;">Headless Mode</span></div></div>
+                            </div>
+                        </div>
+                        <div class="config-section">
+                            <h3 class="config-section-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg> Auto Load Save</h3>
+                            <div class="config-grid"><div class="config-item" style="grid-column: 1 / -1;"><label class="config-label">Save File Path</label><input type="text" class="config-input" id="config-savepath" placeholder="/home/death/techtonica-server/saves/world.dat"></div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-panel" id="panel-saves">
+                    <div class="card">
+                        <div class="card-header"><h2 class="card-title">Save Files</h2><button class="btn btn-secondary" onclick="refreshSaves()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Refresh</button></div>
+                        <div id="saves-list" class="saves-list"><p style="color: var(--color-text-muted);">Loading saves...</p></div>
+                    </div>
+                </div>
+
+                <div class="tab-panel" id="panel-users">
+                    <div class="card">
+                        <div class="card-header"><h2 class="card-title">User Management</h2><button class="btn btn-primary" onclick="showAddUserModal()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add User</button></div>
+                        <table class="users-table"><thead><tr><th>Username</th><th>Role</th><th>Last Login</th><th>Actions</th></tr></thead><tbody id="users-tbody"><tr><td colspan="4" style="text-align: center; color: var(--color-text-muted);">Loading users...</td></tr></tbody></table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="modal-overlay" id="add-user-modal">
+        <div class="modal">
+            <div class="modal-header"><h3 class="modal-title">Add New User</h3><button class="modal-close" onclick="closeModal('add-user-modal')">&times;</button></div>
+            <div class="modal-body">
+                <div class="form-group"><label class="form-label">Username</label><input type="text" class="form-input" id="new-username" required></div>
+                <div class="form-group"><label class="form-label">Password</label><input type="password" class="form-input" id="new-password" required></div>
+                <div class="form-group"><label class="form-label">Role</label><select class="form-select" id="new-role"><option value="manager">Server Manager</option><option value="admin">Administrator</option></select></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('add-user-modal')">Cancel</button><button class="btn btn-primary" onclick="addUser()">Create User</button></div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        let currentUser = null;
+        let currentLogType = 'bepinex';
+        let socket = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadCurrentUser();
+            setupNavigation();
+            setupSocket();
+            await refreshStatus();
+            await loadSaves();
+            setInterval(refreshStatus, 5000);
+        });
+
+        async function loadCurrentUser() {
+            try {
+                const response = await fetch('/api/auth/me', { credentials: 'include' });
+                if (!response.ok) { window.location.href = '/login'; return; }
+                const data = await response.json();
+                currentUser = data.user;
+                document.getElementById('user-name').textContent = currentUser.username;
+                document.getElementById('user-role').textContent = currentUser.role === 'admin' ? 'Administrator' : 'Server Manager';
+                document.getElementById('user-avatar').textContent = currentUser.username.charAt(0).toUpperCase();
+                if (currentUser.role === 'admin') {
+                    document.getElementById('admin-nav').style.display = 'block';
+                    loadUsers();
+                }
+            } catch (err) { window.location.href = '/login'; }
+        }
+
+        function setupNavigation() {
+            document.querySelectorAll('.nav-item[data-tab]').forEach(item => {
+                item.addEventListener('click', () => {
+                    const tab = item.dataset.tab;
+                    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                    item.classList.add('active');
+                    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+                    document.getElementById(`panel-${tab}`).classList.add('active');
+                    document.getElementById('page-title').textContent = item.textContent.trim();
+                });
+            });
+            document.querySelectorAll('.console-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.console-tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    currentLogType = tab.dataset.log;
+                    refreshLogs();
+                });
+            });
+        }
+
+        function setupSocket() {
+            socket = io({ withCredentials: true });
+            socket.on('status', (data) => updateServerStatus(data.status));
+            socket.on('log', (data) => appendLog(data.data));
+        }
+
+        async function refreshStatus() {
+            try {
+                const response = await fetch('/api/status', { credentials: 'include' });
+                const data = await response.json();
+                updateServerStatus(data.status);
+                document.getElementById('server-uptime').textContent = formatUptime(data.uptime);
+                document.getElementById('connect-address').textContent = data.serverAddress || '51.81.155.59:6968';
+                document.getElementById('server-port').textContent = data.config?.Server?.Port || '6968';
+                if (data.config) {
+                    document.getElementById('config-port').value = data.config.Server?.Port || '6968';
+                    document.getElementById('config-maxplayers').value = data.config.Server?.MaxPlayers || '8';
+                    document.getElementById('config-password').value = data.config.Server?.Password || '';
+                    document.getElementById('config-savepath').value = data.config.Server?.AutoLoadSave || '';
+                    updateToggle('toggle-directconnect', data.config.General?.EnableDirectConnect === 'true');
+                    updateToggle('toggle-autostart', data.config.Server?.AutoStartServer === 'true');
+                    updateToggle('toggle-headless', data.config.Server?.HeadlessMode === 'true');
+                }
+            } catch (err) { console.error('Error fetching status:', err); }
+        }
+
+        function updateServerStatus(status) {
+            const statusEl = document.getElementById('server-status');
+            const badge = document.getElementById('server-status-badge');
+            const icon = document.getElementById('status-icon');
+            const btnStart = document.getElementById('btn-start');
+            const btnStop = document.getElementById('btn-stop');
+            const btnRestart = document.getElementById('btn-restart');
+            const statusText = status.charAt(0).toUpperCase() + status.slice(1);
+            statusEl.textContent = statusText;
+            badge.className = `status-badge ${status}`;
+            badge.innerHTML = `<span class="status-dot ${status}"></span> ${statusText}`;
+            icon.className = `status-icon ${status}`;
+            if (status === 'running') { btnStart.disabled = true; btnStop.disabled = false; btnRestart.disabled = false; }
+            else if (status === 'starting') { btnStart.disabled = true; btnStop.disabled = true; btnRestart.disabled = true; }
+            else { btnStart.disabled = false; btnStop.disabled = true; btnRestart.disabled = true; }
+        }
+
+        function formatUptime(seconds) {
+            if (!seconds || seconds < 0) return '--';
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = seconds % 60;
+            if (h > 0) return `${h}h ${m}m`;
+            if (m > 0) return `${m}m ${s}s`;
+            return `${s}s`;
+        }
+
+        async function startServer(savePath = '') {
+            try {
+                showToast('Starting server...', 'info');
+                const response = await fetch('/api/server/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ savePath }), credentials: 'include' });
+                const data = await response.json();
+                if (data.success) showToast('Server starting...', 'success');
+                else showToast(data.message || 'Failed to start server', 'error');
+            } catch (err) { showToast('Error starting server', 'error'); }
+        }
+
+        async function stopServer() {
+            try {
+                showToast('Stopping server...', 'info');
+                const response = await fetch('/api/server/stop', { method: 'POST', credentials: 'include' });
+                const data = await response.json();
+                if (data.success) showToast('Server stopped', 'success');
+                else showToast(data.message || 'Failed to stop server', 'error');
+            } catch (err) { showToast('Error stopping server', 'error'); }
+        }
+
+        async function restartServer() { await stopServer(); setTimeout(() => startServer(), 3000); }
+
+        async function loadSaves() {
+            try {
+                const response = await fetch('/api/saves', { credentials: 'include' });
+                const data = await response.json();
+                const savesHtml = data.saves.map(save => `<div class="save-item" onclick="selectSave(this, '${save.path}')"><div class="save-info"><div class="save-name">${save.name}</div><div class="save-meta">${formatSize(save.size)} - ${formatDate(save.modified)}</div></div><button class="btn btn-success" onclick="event.stopPropagation(); startServer('${save.path}')">Start with this save</button></div>`).join('');
+                document.getElementById('saves-list').innerHTML = savesHtml || '<p style="color: var(--color-text-muted);">No save files found</p>';
+                document.getElementById('quick-saves').innerHTML = data.saves.slice(0, 3).map(save => `<div class="save-item" onclick="startServer('${save.path}')"><div class="save-info"><div class="save-name">${save.name}</div><div class="save-meta">${formatSize(save.size)}</div></div></div>`).join('') || '<p style="color: var(--color-text-muted);">No save files found</p>';
+            } catch (err) { console.error('Error loading saves:', err); }
+        }
+
+        function selectSave(el, path) {
+            document.querySelectorAll('.save-item').forEach(item => item.classList.remove('selected'));
+            el.classList.add('selected');
+            document.getElementById('config-savepath').value = path;
+        }
+
+        function formatSize(bytes) { if (bytes < 1024) return bytes + ' B'; if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'; return (bytes / (1024 * 1024)).toFixed(1) + ' MB'; }
+        function formatDate(date) { return new Date(date).toLocaleString(); }
+        function refreshSaves() { loadSaves(); }
+
+        async function refreshLogs() {
+            try {
+                const response = await fetch(`/api/logs?type=${currentLogType}&lines=200`, { credentials: 'include' });
+                const data = await response.json();
+                const consoleEl = document.getElementById('console-output');
+                consoleEl.innerHTML = data.logs.map(line => {
+                    let className = 'console-line';
+                    if (line.includes('[Error') || line.includes('ERROR')) className += ' error';
+                    else if (line.includes('[Warn') || line.includes('WARNING')) className += ' warn';
+                    else if (line.includes('[Info') || line.includes('success')) className += ' info';
+                    return `<div class="${className}">${escapeHtml(line)}</div>`;
+                }).join('');
+                consoleEl.scrollTop = consoleEl.scrollHeight;
+            } catch (err) { console.error('Error fetching logs:', err); }
+        }
+
+        function appendLog(data) {
+            const consoleEl = document.getElementById('console-output');
+            const lines = data.split('\n').filter(l => l.trim());
+            lines.forEach(line => {
+                const div = document.createElement('div');
+                div.className = 'console-line';
+                if (line.includes('[Error') || line.includes('ERROR')) div.className += ' error';
+                else if (line.includes('[Warn') || line.includes('WARNING')) div.className += ' warn';
+                else if (line.includes('[Info') || line.includes('success')) div.className += ' info';
+                div.textContent = line;
+                consoleEl.appendChild(div);
+            });
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        function escapeHtml(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+        function toggleConfig(el) { el.classList.toggle('active'); }
+        function updateToggle(id, value) { const el = document.getElementById(id); if (value) el.classList.add('active'); else el.classList.remove('active'); }
+
+        async function saveConfig() {
+            const config = {
+                General: { EnableDirectConnect: document.getElementById('toggle-directconnect').classList.contains('active') ? 'true' : 'false' },
+                Server: {
+                    Port: document.getElementById('config-port').value,
+                    MaxPlayers: document.getElementById('config-maxplayers').value,
+                    Password: document.getElementById('config-password').value,
+                    AutoStartServer: document.getElementById('toggle-autostart').classList.contains('active') ? 'true' : 'false',
+                    HeadlessMode: document.getElementById('toggle-headless').classList.contains('active') ? 'true' : 'false',
+                    AutoLoadSave: document.getElementById('config-savepath').value,
+                    AutoLoadSlot: '-1'
+                },
+                Client: { ConnectAddress: '51.81.155.59:6968' }
+            };
+            try {
+                const response = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(config), credentials: 'include' });
+                const data = await response.json();
+                if (data.success) showToast('Configuration saved!', 'success');
+                else showToast('Failed to save configuration', 'error');
+            } catch (err) { showToast('Error saving configuration', 'error'); }
+        }
+
+        async function loadUsers() {
+            try {
+                const response = await fetch('/api/users', { credentials: 'include' });
+                if (!response.ok) return;
+                const data = await response.json();
+                const tbody = document.getElementById('users-tbody');
+                tbody.innerHTML = data.users.map(user => `<tr><td>${escapeHtml(user.username)}</td><td><span class="role-badge ${user.role}">${user.role === 'admin' ? 'Administrator' : 'Manager'}</span></td><td>${user.lastLogin ? formatDate(user.lastLogin) : 'Never'}</td><td><div class="btn-group"><button class="btn btn-secondary" onclick="deleteUser('${user.id}')">Delete</button></div></td></tr>`).join('');
+            } catch (err) { console.error('Error loading users:', err); }
+        }
+
+        function showAddUserModal() { document.getElementById('add-user-modal').classList.add('show'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+        async function addUser() {
+            const username = document.getElementById('new-username').value;
+            const password = document.getElementById('new-password').value;
+            const role = document.getElementById('new-role').value;
+            try {
+                const response = await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password, role }), credentials: 'include' });
+                const data = await response.json();
+                if (data.success) { showToast('User created successfully', 'success'); closeModal('add-user-modal'); loadUsers(); }
+                else showToast(data.error || 'Failed to create user', 'error');
+            } catch (err) { showToast('Error creating user', 'error'); }
+        }
+
+        async function deleteUser(id) {
+            if (!confirm('Are you sure you want to delete this user?')) return;
+            try {
+                const response = await fetch(`/api/users/${id}`, { method: 'DELETE', credentials: 'include' });
+                const data = await response.json();
+                if (data.success) { showToast('User deleted', 'success'); loadUsers(); }
+                else showToast(data.error || 'Failed to delete user', 'error');
+            } catch (err) { showToast('Error deleting user', 'error'); }
+        }
+
+        async function logout() { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); window.location.href = '/login'; }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${type === 'success' ? '<polyline points="20 6 9 17 4 12"/>' : type === 'error' ? '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>' : '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>'}</svg>${message}`;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+    </script>
+</body>
+</html>

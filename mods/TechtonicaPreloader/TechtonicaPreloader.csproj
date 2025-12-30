@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>TechtonicaPreloader</AssemblyName>
+    <Description>BepInEx preloader patcher for Steam bypass</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Mono.Cecil for assembly patching (included with BepInEx) -->
+    <Reference Include="Mono.Cecil">
+      <HintPath>../../game/Techtonica/BepInEx/core/Mono.Cecil.dll</HintPath>
+    </Reference>
+    <Reference Include="Mono.Cecil.Rocks">
+      <HintPath>../../game/Techtonica/BepInEx/core/Mono.Cecil.Rocks.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,25 @@
+{
+  "name": "techtonica-server-admin",
+  "version": "1.0.0",
+  "description": "Web admin panel for Techtonica Dedicated Server",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "techtonica",
+    "game-server",
+    "admin-panel"
+  ],
+  "author": "Community",
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "express": "^5.2.1",
+    "express-session": "^1.18.2",
+    "ini": "^6.0.0",
+    "socket.io": "^4.8.3"
+  }
+}

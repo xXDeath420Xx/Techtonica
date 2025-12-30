@@ -1,0 +1,48 @@
+# Environment (contains secrets)
+.env
+
+# Game files (large, downloaded via SteamCMD)
+game/
+
+# Wine prefix
+wine/
+.wine/
+
+# Logs
+*.log
+logs/
+
+# Saves (backup separately)
+saves/*.dat
+
+# Build outputs
+**/bin/
+**/obj/
+
+# Keep mod DLLs in thunderstore folders
+!**/thunderstore/*.dll
+
+# Node modules
+node_modules/
+
+# Secrets
+*.pem
+*.key
+users.json
+
+# IDE
+.vs/
+.vscode/
+*.suo
+*.user
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Deployment dist folders
+deployment/**/dist/
+
+# Temp files
+*.tmp
+*.temp
