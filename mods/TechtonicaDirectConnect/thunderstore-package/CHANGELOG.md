@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.17
+- Added patches for NetworkedPlayer.OnStartClient() and OnStartLocalPlayer()
+- These methods crash when connecting because the player spawns before scene objects exist
+- Now patches 5 methods total to prevent NullReferenceException spam
+
 ## 1.0.16
 - Added null safety patches to prevent error spam when connecting
 - Patches NetworkedPlayer.Update() to skip (prevents NullReferenceException)

@@ -508,7 +508,7 @@ namespace TechtonicaDirectConnect
     {
         public const string PLUGIN_GUID = "com.certifried.techtonicadirectconnect";
         public const string PLUGIN_NAME = "Techtonica Direct Connect";
-        public const string PLUGIN_VERSION = "1.0.16";
+        public const string PLUGIN_VERSION = "1.0.17";
     }
 
     /// <summary>
@@ -526,16 +526,34 @@ namespace TechtonicaDirectConnect
 
             try
             {
-                // Patch NetworkedPlayer.Update
+                // Patch NetworkedPlayer methods
                 var networkedPlayerType = AccessTools.TypeByName("NetworkedPlayer");
                 if (networkedPlayerType != null)
                 {
+                    var prefix = new HarmonyMethod(typeof(NullSafetyPatches), nameof(Skip_Prefix));
+
+                    // Patch Update
                     var updateMethod = AccessTools.Method(networkedPlayerType, "Update");
                     if (updateMethod != null)
                     {
-                        var prefix = new HarmonyMethod(typeof(NullSafetyPatches), nameof(Skip_Prefix));
                         harmony.Patch(updateMethod, prefix: prefix);
                         Plugin.Log.LogInfo("[DirectConnect] Patched NetworkedPlayer.Update to skip");
+                    }
+
+                    // Patch OnStartClient - crashes when player spawns without proper initialization
+                    var onStartClientMethod = AccessTools.Method(networkedPlayerType, "OnStartClient");
+                    if (onStartClientMethod != null)
+                    {
+                        harmony.Patch(onStartClientMethod, prefix: prefix);
+                        Plugin.Log.LogInfo("[DirectConnect] Patched NetworkedPlayer.OnStartClient to skip");
+                    }
+
+                    // Patch OnStartLocalPlayer - crashes when local player created without proper scene
+                    var onStartLocalPlayerMethod = AccessTools.Method(networkedPlayerType, "OnStartLocalPlayer");
+                    if (onStartLocalPlayerMethod != null)
+                    {
+                        harmony.Patch(onStartLocalPlayerMethod, prefix: prefix);
+                        Plugin.Log.LogInfo("[DirectConnect] Patched NetworkedPlayer.OnStartLocalPlayer to skip");
                     }
                 }
                 else
