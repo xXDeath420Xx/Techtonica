@@ -1,5 +1,6 @@
 using HarmonyLib;
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 
@@ -38,6 +39,9 @@ namespace TechtonicaDedicatedServer.Patches
                 PatchNetworkedPlayer(harmony);
                 PatchThirdPersonDisplayAnimator(harmony);
 
+                // CRITICAL: Patch SaveState.PrepSave to handle null references in headless mode
+                PatchSaveState(harmony);
+
                 _patchesApplied = true;
                 Plugin.Log.LogInfo("[HeadlessPatches] Headless patches applied");
             }
@@ -46,6 +50,53 @@ namespace TechtonicaDedicatedServer.Patches
                 Plugin.Log.LogError($"[HeadlessPatches] Failed to apply patches: {ex}");
             }
         }
+
+        private static void PatchSaveState(Harmony harmony)
+        {
+            try
+            {
+                var saveStateType = AccessTools.TypeByName("SaveState");
+                if (saveStateType == null)
+                {
+                    Plugin.Log.LogWarning("[HeadlessPatches] SaveState type not found");
+                    return;
+                }
+
+                // Patch PrepSave with a finalizer to catch and handle exceptions
+                var prepSaveMethod = AccessTools.Method(saveStateType, "PrepSave");
+                if (prepSaveMethod != null)
+                {
+                    var finalizer = new HarmonyMethod(typeof(HeadlessPatches), nameof(PrepSave_Finalizer));
+                    harmony.Patch(prepSaveMethod, finalizer: finalizer);
+                    Plugin.Log.LogInfo("[HeadlessPatches] SaveState.PrepSave patched with exception handler");
+                }
+                else
+                {
+                    Plugin.Log.LogWarning("[HeadlessPatches] SaveState.PrepSave method not found");
+                }
+
+                // Patch SaveAsString to use cached data when PrepSave fails
+                var saveAsStringMethod = AccessTools.Method(saveStateType, "SaveAsString");
+                if (saveAsStringMethod != null)
+                {
+                    var prefix = new HarmonyMethod(typeof(HeadlessPatches), nameof(SaveAsString_Prefix));
+                    var finalizer = new HarmonyMethod(typeof(HeadlessPatches), nameof(SaveAsString_Finalizer));
+                    harmony.Patch(saveAsStringMethod, prefix: prefix, finalizer: finalizer);
+                    Plugin.Log.LogInfo("[HeadlessPatches] SaveState.SaveAsString patched with cached fallback");
+                }
+                else
+                {
+                    Plugin.Log.LogWarning("[HeadlessPatches] SaveState.SaveAsString method not found");
+                }
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log.LogWarning($"[HeadlessPatches] SaveState patch failed: {ex.Message}");
+            }
+        }
+
+        // Track if we should use cached data
+        private static bool _useCachedSaveData = false;
 
         private static void PatchCursorLock(Harmony harmony)
         {
@@ -193,6 +244,61 @@ namespace TechtonicaDedicatedServer.Patches
         }
 
         // Patch methods
+
+        /// <summary>
+        /// Finalizer for SaveState.PrepSave - catches NullReferenceException in headless mode
+        /// and allows the save to continue with whatever data was collected
+        /// </summary>
+        public static Exception PrepSave_Finalizer(Exception __exception)
+        {
+            if (__exception != null)
+            {
+                Plugin.Log.LogWarning($"[HeadlessPatches] PrepSave exception caught (headless mode): {__exception.GetType().Name}");
+                Plugin.Log.LogWarning($"[HeadlessPatches] Message: {__exception.Message}");
+
+                // Swallow NullReferenceException - this happens because some UI/player state
+                // doesn't exist in headless dedicated server mode
+                if (__exception is NullReferenceException)
+                {
+                    Plugin.Log.LogInfo("[HeadlessPatches] Swallowing NullReferenceException in PrepSave - will use cached save data");
+                    _useCachedSaveData = true;
+                    return null; // Suppress the exception
+                }
+            }
+            return __exception; // Let other exceptions propagate
+        }
+
+        /// <summary>
+        /// Prefix for SaveAsString - reset the cached data flag
+        /// </summary>
+        public static void SaveAsString_Prefix()
+        {
+            _useCachedSaveData = false;
+        }
+
+        /// <summary>
+        /// Finalizer for SaveAsString - if PrepSave failed, return cached save data instead
+        /// </summary>
+        public static Exception SaveAsString_Finalizer(Exception __exception, ref string __result)
+        {
+            if (__exception != null || _useCachedSaveData)
+            {
+                var cachedData = Networking.AutoLoadManager.GetCachedSaveString();
+                if (!string.IsNullOrEmpty(cachedData))
+                {
+                    Plugin.Log.LogInfo($"[HeadlessPatches] Using cached save data ({cachedData.Length} chars) instead of SaveAsString result");
+                    __result = cachedData;
+                    _useCachedSaveData = false;
+                    return null; // Suppress any exception
+                }
+                else
+                {
+                    Plugin.Log.LogError("[HeadlessPatches] SaveAsString failed and no cached data available!");
+                }
+            }
+            return __exception;
+        }
+
         public static bool CursorLock_Prefix()
         {
             // Skip cursor lock in headless mode
@@ -341,11 +447,40 @@ namespace TechtonicaDedicatedServer.Patches
                 {
                     Plugin.Log.LogWarning($"[AutoStartPatches] EventSystem hook failed: {hookEx.Message}");
                 }
+
+                // Hook into Camera.Render as a reliable fallback - this is called every frame
+                try
+                {
+                    var cameraType = typeof(UnityEngine.Camera);
+                    var renderMethod = AccessTools.Method(cameraType, "Render");
+                    if (renderMethod != null)
+                    {
+                        var renderPostfix = new HarmonyMethod(typeof(AutoStartPatches), nameof(Camera_Render_Postfix));
+                        harmony.Patch(renderMethod, postfix: renderPostfix);
+                        Plugin.Log.LogInfo("[AutoStartPatches] Hooked Camera.Render for auto-load polling");
+                    }
+                }
+                catch (Exception cameraEx)
+                {
+                    Plugin.Log.LogWarning($"[AutoStartPatches] Camera.Render hook failed: {cameraEx.Message}");
+                }
             }
             catch (Exception ex)
             {
                 Plugin.Log.LogError($"[AutoStartPatches] Failed to apply patches: {ex}");
             }
+        }
+
+        private static bool _firstCameraRenderCall = true;
+
+        public static void Camera_Render_Postfix()
+        {
+            if (_firstCameraRenderCall)
+            {
+                _firstCameraRenderCall = false;
+                Plugin.DebugLog("[AutoStartPatches] Camera.Render postfix FIRST CALL!");
+            }
+            CheckAutoLoadTrigger("Camera.Render");
         }
 
         public static void MainMenu_Postfix()

@@ -1,6 +1,6 @@
 {
     "name": "TechtonicaDedicatedServer",
-    "version_number": "0.1.0",
+    "version_number": "0.1.1",
     "website_url": "",
     "description": "Enables dedicated server hosting and direct IP connections for Techtonica. Host 24/7 servers without requiring Steam lobbies!",
     "dependencies": [

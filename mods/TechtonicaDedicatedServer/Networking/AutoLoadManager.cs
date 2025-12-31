@@ -17,7 +17,67 @@ namespace TechtonicaDedicatedServer.Networking
         private static bool _hasAttemptedAutoLoad;
         private static bool _isAutoLoading;
 
+        // Cached save data for sending to clients (used when PrepSave fails in headless mode)
+        private static string _cachedSaveString;
+        private static byte[] _cachedSaveBytes;
+        private static string _lastLoadedSavePath;
+
         public static bool IsAutoLoading => _isAutoLoading;
+
+        /// <summary>
+        /// Gets cached save data as a string. Used by SendSaveString patch when PrepSave fails.
+        /// </summary>
+        public static string GetCachedSaveString()
+        {
+            if (!string.IsNullOrEmpty(_cachedSaveString))
+            {
+                return _cachedSaveString;
+            }
+
+            // Try to read from file if we have the path
+            if (!string.IsNullOrEmpty(_lastLoadedSavePath) && File.Exists(_lastLoadedSavePath))
+            {
+                try
+                {
+                    _cachedSaveBytes = File.ReadAllBytes(_lastLoadedSavePath);
+                    _cachedSaveString = Convert.ToBase64String(_cachedSaveBytes);
+                    Plugin.DebugLog($"[AutoLoad] Cached save data from file: {_cachedSaveString.Length} chars");
+                    return _cachedSaveString;
+                }
+                catch (Exception ex)
+                {
+                    Plugin.DebugLog($"[AutoLoad] Failed to read cached save: {ex.Message}");
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Cache the save file data right after loading
+        /// </summary>
+        private static void CacheSaveData(string savePath)
+        {
+            try
+            {
+                _lastLoadedSavePath = savePath;
+
+                if (File.Exists(savePath))
+                {
+                    _cachedSaveBytes = File.ReadAllBytes(savePath);
+                    _cachedSaveString = Convert.ToBase64String(_cachedSaveBytes);
+                    Plugin.DebugLog($"[AutoLoad] Cached save file: {savePath} ({_cachedSaveBytes.Length} bytes, {_cachedSaveString.Length} chars base64)");
+                }
+                else
+                {
+                    Plugin.DebugLog($"[AutoLoad] Cannot cache save - file not found: {savePath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Plugin.DebugLog($"[AutoLoad] Error caching save data: {ex.Message}");
+            }
+        }
 
         /// <summary>
         /// Attempts to auto-load a save file if configured.
@@ -93,9 +153,12 @@ namespace TechtonicaDedicatedServer.Networking
 
             // Load save file
             object saveState = null;
+            string savePath = null;
+
             if (!string.IsNullOrEmpty(Plugin.AutoLoadSave.Value))
             {
-                saveState = LoadSaveFromPath(Plugin.AutoLoadSave.Value);
+                savePath = Plugin.AutoLoadSave.Value;
+                saveState = LoadSaveFromPath(savePath);
             }
             else if (Plugin.AutoLoadSlot.Value >= 0)
             {
@@ -109,6 +172,13 @@ namespace TechtonicaDedicatedServer.Networking
             }
 
             Plugin.DebugLog($"[AutoLoad-Direct] Save loaded successfully! Type: {saveState.GetType().Name}");
+
+            // CRITICAL: Cache the save data immediately for sending to clients
+            // This is needed because PrepSave() fails in headless mode
+            if (!string.IsNullOrEmpty(savePath))
+            {
+                CacheSaveData(savePath);
+            }
 
             // Call FlowManager.LoadSaveGame(saveState)
             var loadSaveGameMethod = flowManagerType.GetMethod("LoadSaveGame",
@@ -127,6 +197,35 @@ namespace TechtonicaDedicatedServer.Networking
                 // LoadSaveGame(SaveState loadingState, Action callback = null, bool asClient = false)
                 loadSaveGameMethod.Invoke(null, new object[] { saveState, null, false });
                 Plugin.DebugLog("[AutoLoad-Direct] LoadSaveGame called successfully!");
+
+                // CRITICAL: Set SaveState.saveOpStatus to SaveSucceeded
+                // This is required for SendSaveString coroutine to send save data to clients
+                // Without this, clients get stuck on "Getting Save File From Host"
+                try
+                {
+                    var saveStateType = AccessTools.TypeByName("SaveState");
+                    if (saveStateType != null)
+                    {
+                        var saveOpStatusField = saveStateType.GetField("saveOpStatus",
+                            BindingFlags.Public | BindingFlags.Static | BindingFlags.NonPublic);
+                        if (saveOpStatusField != null)
+                        {
+                            // Get the SaveOpStatus enum type and find SaveSucceeded value
+                            var statusType = saveOpStatusField.FieldType;
+                            var succeededValue = Enum.Parse(statusType, "SaveSucceeded");
+                            saveOpStatusField.SetValue(null, succeededValue);
+                            Plugin.DebugLog("[AutoLoad-Direct] Set SaveState.saveOpStatus = SaveSucceeded");
+                        }
+                        else
+                        {
+                            Plugin.DebugLog("[AutoLoad-Direct] WARNING: Could not find saveOpStatus field");
+                        }
+                    }
+                }
+                catch (Exception statusEx)
+                {
+                    Plugin.DebugLog($"[AutoLoad-Direct] WARNING: Failed to set saveOpStatus: {statusEx.Message}");
+                }
 
                 // Now we need to start the server after a delay
                 // Since we can't use coroutines, we'll use another thread

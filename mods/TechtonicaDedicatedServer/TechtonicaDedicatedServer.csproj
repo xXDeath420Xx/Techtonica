@@ -4,7 +4,7 @@
     <TargetFramework>net472</TargetFramework>
     <AssemblyName>TechtonicaDedicatedServer</AssemblyName>
     <RootNamespace>TechtonicaDedicatedServer</RootNamespace>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <Authors>Community</Authors>
     <Description>Dedicated server support for Techtonica</Description>
     <LangVersion>9.0</LangVersion>
