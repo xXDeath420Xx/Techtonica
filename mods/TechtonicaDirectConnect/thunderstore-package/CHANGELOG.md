@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.31
+- **FIX**: Fixed AccessTools.Property -> AccessTools.Field for LoadingUI.instance
+- LoadingUI.instance is a field, not a property - was causing reflection to fail
+- Both TryCallOnFinishLoading() and CheckLoadingMonitor() now use correct reflection
+- Updated version in PluginInfo to match package version
+
 ## 1.0.30
 - **FIX**: Added loading monitor that detects stuck loading screen
 - Automatically calls LoadingUI.OnFinishLoading() after 5 seconds if stuck on "Generating Machines"

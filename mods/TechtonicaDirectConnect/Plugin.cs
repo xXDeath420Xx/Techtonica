@@ -161,8 +161,9 @@ namespace TechtonicaDirectConnect
                 var loadingUIType = AccessTools.TypeByName("LoadingUI");
                 if (loadingUIType == null) return;
 
-                var instanceProp = AccessTools.Property(loadingUIType, "instance");
-                var loadingUI = instanceProp?.GetValue(null);
+                // LoadingUI.instance is a FIELD, not a property
+                var instanceField = AccessTools.Field(loadingUIType, "instance");
+                var loadingUI = instanceField?.GetValue(null);
                 if (loadingUI == null) return;
 
                 // Check if loading screen is active by checking the gameObject
@@ -827,7 +828,7 @@ namespace TechtonicaDirectConnect
     {
         public const string PLUGIN_GUID = "com.certifried.techtonicadirectconnect";
         public const string PLUGIN_NAME = "Techtonica Direct Connect";
-        public const string PLUGIN_VERSION = "1.0.26";
+        public const string PLUGIN_VERSION = "1.0.31";
     }
 
     /// <summary>
@@ -1081,8 +1082,9 @@ namespace TechtonicaDirectConnect
                 var loadingUIType = AccessTools.TypeByName("LoadingUI");
                 if (loadingUIType != null)
                 {
-                    var instanceProp = AccessTools.Property(loadingUIType, "instance");
-                    var loadingUI = instanceProp?.GetValue(null);
+                    // LoadingUI.instance is a FIELD, not a property
+                    var instanceField = AccessTools.Field(loadingUIType, "instance");
+                    var loadingUI = instanceField?.GetValue(null);
 
                     if (loadingUI != null)
                     {
