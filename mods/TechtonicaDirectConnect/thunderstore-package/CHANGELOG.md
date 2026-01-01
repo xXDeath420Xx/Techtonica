@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.36
+- **DEBUG**: Changed isActive detection to use _loaded field
+- Now checks: gameObject active AND _loaded==false (still loading)
+- Added logging every 60 frames showing goActive, _loaded, isActive, timer
+- This will show why the timer keeps resetting
+
 ## 1.0.35
 - **DEBUG**: Added HEARTBEAT log every 5 seconds in Update()
 - Shows frame count, monitor state, timer, and finishCalled status

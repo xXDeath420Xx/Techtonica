@@ -246,20 +246,30 @@ namespace TechtonicaDirectConnect
 
                 // Check if loading screen is active by checking the gameObject
                 var loadingUIComponent = loadingUI as Component;
-                bool isActive = loadingUIComponent != null && loadingUIComponent.gameObject.activeInHierarchy;
+                bool goActive = loadingUIComponent != null && loadingUIComponent.gameObject.activeInHierarchy;
 
-                // Also check isActive field if it exists
-                var isActiveField = loadingUIType.GetField("isActive", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                if (isActiveField != null)
+                // Check the _loaded field - if false, loading is still in progress
+                bool loadedField = false;
+                var loadedFieldInfo = loadingUIType.GetField("_loaded", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                if (loadedFieldInfo != null)
                 {
-                    try { isActive = isActive || (bool)isActiveField.GetValue(loadingUI); } catch { }
+                    try { loadedField = (bool)loadedFieldInfo.GetValue(loadingUI); } catch { }
+                }
+
+                // Loading is "active" if gameObject is active AND _loaded is false (still loading)
+                bool isActive = goActive && !loadedField;
+
+                // Log state occasionally for debugging
+                if (_monitorCheckCount % 60 == 0 && _loadingMonitorActive)
+                {
+                    Log.LogInfo($"[DirectConnect] Monitor check: goActive={goActive}, _loaded={loadedField}, isActive={isActive}, timer={_loadingStuckTimer:F1}s");
                 }
 
                 if (!isActive)
                 {
                     if (_loadingMonitorActive)
                     {
-                        Log.LogWarning($"[DirectConnect] Monitor: Loading screen became INACTIVE after {_loadingStuckTimer:F1}s!");
+                        Log.LogWarning($"[DirectConnect] Monitor: Loading done or inactive! goActive={goActive}, _loaded={loadedField}");
                     }
                     _loadingMonitorActive = false;
                     _loadingStuckTimer = 0f;
@@ -941,7 +951,7 @@ namespace TechtonicaDirectConnect
     {
         public const string PLUGIN_GUID = "com.certifried.techtonicadirectconnect";
         public const string PLUGIN_NAME = "Techtonica Direct Connect";
-        public const string PLUGIN_VERSION = "1.0.35";
+        public const string PLUGIN_VERSION = "1.0.36";
     }
 
     /// <summary>
