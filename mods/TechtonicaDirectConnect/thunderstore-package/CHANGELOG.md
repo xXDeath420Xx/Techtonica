@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.37
+- **FIX**: Moved timer increment outside else block
+- Timer now increments every frame when isActive=true (not just when monitorActive=true)
+- Added deltaTime to progress log for debugging
+- This should fix the timer not incrementing issue
+
 ## 1.0.36
 - **DEBUG**: Changed isActive detection to use _loaded field
 - Now checks: gameObject active AND _loaded==false (still loading)

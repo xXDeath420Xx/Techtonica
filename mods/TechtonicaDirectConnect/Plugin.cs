@@ -311,20 +311,20 @@ namespace TechtonicaDirectConnect
                         _lastLoadingState = currentState;
                         Log.LogInfo($"[DirectConnect] Loading monitor started at state: '{currentState}'");
                     }
-                    else
+
+                    // ALWAYS increment timer when isActive (moved outside else block)
+                    _loadingStuckTimer += Time.deltaTime;
+
+                    // Log progress every second
+                    int currentSecond = (int)_loadingStuckTimer;
+                    if (currentSecond > 0 && currentSecond != _lastLoggedSecond)
                     {
-                        _loadingStuckTimer += Time.deltaTime;
+                        _lastLoggedSecond = currentSecond;
+                        Log.LogInfo($"[DirectConnect] Loading monitor: {_loadingStuckTimer:F2}s at '{currentState}' (deltaTime={Time.deltaTime:F4})");
+                    }
 
-                        // Log progress every second
-                        int currentSecond = (int)_loadingStuckTimer;
-                        if (currentSecond > 0 && currentSecond != _lastLoggedSecond)
-                        {
-                            _lastLoggedSecond = currentSecond;
-                            Log.LogInfo($"[DirectConnect] Loading monitor: {_loadingStuckTimer:F1}s at '{currentState}'");
-                        }
-
-                        // If stuck for more than 3 seconds, force finish loading
-                        if (_loadingStuckTimer > 3f && !_finishLoadingCalled)
+                    // If stuck for more than 3 seconds, force finish loading
+                    if (_loadingStuckTimer > 3f && !_finishLoadingCalled)
                         {
                             _finishLoadingCalled = true;
                             Log.LogWarning($"[DirectConnect] Loading stuck for {_loadingStuckTimer:F1}s at '{currentState}' - forcing completion!");
@@ -352,7 +352,6 @@ namespace TechtonicaDirectConnect
                         }
                     }
                 }
-            }
             catch (Exception ex)
             {
                 // Always log errors now - they're critical for debugging
@@ -951,7 +950,7 @@ namespace TechtonicaDirectConnect
     {
         public const string PLUGIN_GUID = "com.certifried.techtonicadirectconnect";
         public const string PLUGIN_NAME = "Techtonica Direct Connect";
-        public const string PLUGIN_VERSION = "1.0.36";
+        public const string PLUGIN_VERSION = "1.0.37";
     }
 
     /// <summary>
