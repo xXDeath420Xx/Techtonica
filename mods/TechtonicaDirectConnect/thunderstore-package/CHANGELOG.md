@@ -1,11 +1,15 @@
 # Changelog
 
+## 1.0.30
+- **FIX**: Added loading monitor that detects stuck loading screen
+- Automatically calls LoadingUI.OnFinishLoading() after 5 seconds if stuck on "Generating Machines"
+- Properly handles NullReferenceException in NetworkMessageRelay.instance (dedicated server mode)
+- Monitor runs in Update() to catch the issue regardless of where the NRE occurs
+
 ## 1.0.29
-- **FIX**: Fixed NullReferenceException when connecting to dedicated servers
 - Added RequestCurrentSimTick_Prefix to handle null NetworkMessageRelay.instance
 - Added RequestCurrentSimTick_Finalizer to catch exceptions and complete loading
 - Calls LoadingUI.OnFinishLoading() directly when server doesn't have NetworkMessageRelay
-- Fixes "Generating Machines" loading screen freeze when joining dedicated servers
 
 ## 1.0.26
 - **CRITICAL FIX**: Removed NetworkedPlayer patches that were breaking save sync!

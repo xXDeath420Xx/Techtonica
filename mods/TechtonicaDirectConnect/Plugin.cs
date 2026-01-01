@@ -59,6 +59,12 @@ namespace TechtonicaDirectConnect
         private string _pendingServerAddress = "";
         private int _pendingServerPort = 6968;
 
+        // Loading monitor for dedicated server connections
+        private static float _loadingStuckTimer = 0f;
+        private static bool _loadingMonitorActive = false;
+        private static string _lastLoadingState = "";
+        private static bool _finishLoadingCalled = false;
+
         private void Awake()
         {
             _instance = this;
@@ -135,6 +141,99 @@ namespace TechtonicaDirectConnect
                 Log.LogInfo("[DirectConnect] UI closed via ESC");
             }
             _escWasPressed = escWin;
+
+            // Loading monitor - detect stuck loading and force completion
+            CheckLoadingMonitor();
+        }
+
+        /// <summary>
+        /// Monitors loading state and forces completion if stuck on "Generating Machines"
+        /// This handles the case where NetworkMessageRelay.instance is null on dedicated servers
+        /// </summary>
+        private void CheckLoadingMonitor()
+        {
+            // Only monitor when connected as client
+            if (!NetworkClient.active || _finishLoadingCalled) return;
+
+            try
+            {
+                // Check if LoadingUI exists and what state it's in
+                var loadingUIType = AccessTools.TypeByName("LoadingUI");
+                if (loadingUIType == null) return;
+
+                var instanceProp = AccessTools.Property(loadingUIType, "instance");
+                var loadingUI = instanceProp?.GetValue(null);
+                if (loadingUI == null) return;
+
+                // Check if loading screen is active by checking the gameObject
+                var loadingUIComponent = loadingUI as Component;
+                bool isActive = loadingUIComponent != null && loadingUIComponent.gameObject.activeInHierarchy;
+
+                // Also check isActive field if it exists
+                var isActiveField = loadingUIType.GetField("isActive", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                if (isActiveField != null)
+                {
+                    isActive = isActive || (bool)isActiveField.GetValue(loadingUI);
+                }
+
+                if (!isActive)
+                {
+                    // Loading is done, reset monitor
+                    _loadingMonitorActive = false;
+                    _loadingStuckTimer = 0f;
+                    return;
+                }
+
+                // Get current loading state text
+                var currentStateField = loadingUIType.GetField("currentState", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                string currentState = currentStateField?.GetValue(loadingUI)?.ToString() ?? "";
+
+                // Start monitoring when we reach "Generating_Machines" or later
+                if (currentState.Contains("Generating") || currentState.Contains("Machine"))
+                {
+                    if (!_loadingMonitorActive)
+                    {
+                        _loadingMonitorActive = true;
+                        _loadingStuckTimer = 0f;
+                        _lastLoadingState = currentState;
+                        Log.LogInfo($"[DirectConnect] Loading monitor started at state: {currentState}");
+                    }
+                    else
+                    {
+                        _loadingStuckTimer += Time.deltaTime;
+
+                        // If stuck for more than 5 seconds, force finish loading
+                        if (_loadingStuckTimer > 5f && !_finishLoadingCalled)
+                        {
+                            _finishLoadingCalled = true;
+                            Log.LogWarning($"[DirectConnect] Loading stuck for {_loadingStuckTimer:F1}s at '{currentState}' - forcing completion!");
+
+                            // Call OnFinishLoading directly
+                            var onFinishMethod = AccessTools.Method(loadingUIType, "OnFinishLoading");
+                            if (onFinishMethod != null)
+                            {
+                                try
+                                {
+                                    onFinishMethod.Invoke(loadingUI, null);
+                                    Log.LogInfo("[DirectConnect] Successfully called LoadingUI.OnFinishLoading()!");
+                                }
+                                catch (Exception ex)
+                                {
+                                    Log.LogError($"[DirectConnect] Error calling OnFinishLoading: {ex.Message}");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Silently ignore errors in the monitor
+                if (_debugTimer < 0.1f) // Only log occasionally
+                {
+                    Log.LogWarning($"[DirectConnect] Loading monitor error: {ex.Message}");
+                }
+            }
         }
 
         // OnGUI runs directly on the plugin
