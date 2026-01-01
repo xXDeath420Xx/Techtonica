@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.33
+- **DEBUG**: Improved logging frequency (every second instead of every 2)
+- Added logging when loading screen becomes INACTIVE (to understand why monitor stops)
+- Reduced timeout to 3 seconds (was 5)
+- Fixed second-tracking logic for progress logs
+
 ## 1.0.32
 - **DEBUG**: Added comprehensive logging to loading monitor
 - Tries multiple ways to find LoadingUI instance (field, property, FindObjectOfType)

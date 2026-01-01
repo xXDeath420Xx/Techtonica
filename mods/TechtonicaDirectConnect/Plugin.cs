@@ -65,6 +65,7 @@ namespace TechtonicaDirectConnect
         private static bool _loadingMonitorActive = false;
         private static string _lastLoadingState = "";
         private static bool _finishLoadingCalled = false;
+        private static int _lastLoggedSecond = -1;
 
         private void Awake()
         {
@@ -269,14 +270,16 @@ namespace TechtonicaDirectConnect
                     {
                         _loadingStuckTimer += Time.deltaTime;
 
-                        // Log progress every 2 seconds
-                        if ((int)_loadingStuckTimer % 2 == 0 && _loadingStuckTimer - (int)_loadingStuckTimer < Time.deltaTime)
+                        // Log progress every second
+                        int currentSecond = (int)_loadingStuckTimer;
+                        if (currentSecond > 0 && currentSecond != _lastLoggedSecond)
                         {
+                            _lastLoggedSecond = currentSecond;
                             Log.LogInfo($"[DirectConnect] Loading monitor: {_loadingStuckTimer:F1}s at '{currentState}'");
                         }
 
-                        // If stuck for more than 5 seconds, force finish loading
-                        if (_loadingStuckTimer > 5f && !_finishLoadingCalled)
+                        // If stuck for more than 3 seconds, force finish loading
+                        if (_loadingStuckTimer > 3f && !_finishLoadingCalled)
                         {
                             _finishLoadingCalled = true;
                             Log.LogWarning($"[DirectConnect] Loading stuck for {_loadingStuckTimer:F1}s at '{currentState}' - forcing completion!");
@@ -303,6 +306,13 @@ namespace TechtonicaDirectConnect
                             }
                         }
                     }
+                }
+                else if (_loadingMonitorActive)
+                {
+                    // Loading screen became inactive - log why
+                    Log.LogWarning($"[DirectConnect] Loading screen became INACTIVE after {_loadingStuckTimer:F1}s! finishCalled={_finishLoadingCalled}");
+                    _loadingMonitorActive = false;
+                    _loadingStuckTimer = 0f;
                 }
             }
             catch (Exception ex)
@@ -907,7 +917,7 @@ namespace TechtonicaDirectConnect
     {
         public const string PLUGIN_GUID = "com.certifried.techtonicadirectconnect";
         public const string PLUGIN_NAME = "Techtonica Direct Connect";
-        public const string PLUGIN_VERSION = "1.0.32";
+        public const string PLUGIN_VERSION = "1.0.33";
     }
 
     /// <summary>
