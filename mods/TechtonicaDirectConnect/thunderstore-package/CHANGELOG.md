@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.32
+- **DEBUG**: Added comprehensive logging to loading monitor
+- Tries multiple ways to find LoadingUI instance (field, property, FindObjectOfType)
+- Lists all available fields/methods when reflection fails
+- Logs loading progress every 2 seconds
+- Starts monitoring immediately when loading screen is active (not waiting for specific state)
+
 ## 1.0.31
 - **FIX**: Fixed AccessTools.Property -> AccessTools.Field for LoadingUI.instance
 - LoadingUI.instance is a field, not a property - was causing reflection to fail

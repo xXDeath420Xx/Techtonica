@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -146,6 +147,9 @@ namespace TechtonicaDirectConnect
             CheckLoadingMonitor();
         }
 
+        // Debug logging for loading monitor
+        private static bool _loadingMonitorDebugLogged = false;
+
         /// <summary>
         /// Monitors loading state and forces completion if stuck on "Generating Machines"
         /// This handles the case where NetworkMessageRelay.instance is null on dedicated servers
@@ -159,12 +163,53 @@ namespace TechtonicaDirectConnect
             {
                 // Check if LoadingUI exists and what state it's in
                 var loadingUIType = AccessTools.TypeByName("LoadingUI");
-                if (loadingUIType == null) return;
+                if (loadingUIType == null)
+                {
+                    if (!_loadingMonitorDebugLogged)
+                    {
+                        Log.LogWarning("[DirectConnect] LoadingUI type not found!");
+                        _loadingMonitorDebugLogged = true;
+                    }
+                    return;
+                }
 
-                // LoadingUI.instance is a FIELD, not a property
+                // Try to find instance - could be field or property with various names
+                object loadingUI = null;
+
+                // Try static field "instance"
                 var instanceField = AccessTools.Field(loadingUIType, "instance");
-                var loadingUI = instanceField?.GetValue(null);
-                if (loadingUI == null) return;
+                if (instanceField != null)
+                {
+                    loadingUI = instanceField.GetValue(null);
+                }
+
+                // Try static property "Instance"
+                if (loadingUI == null)
+                {
+                    var instanceProp = AccessTools.Property(loadingUIType, "Instance");
+                    if (instanceProp != null)
+                    {
+                        loadingUI = instanceProp.GetValue(null);
+                    }
+                }
+
+                // Try FindObjectOfType as fallback
+                if (loadingUI == null)
+                {
+                    loadingUI = UnityEngine.Object.FindObjectOfType(loadingUIType);
+                }
+
+                if (loadingUI == null)
+                {
+                    if (!_loadingMonitorDebugLogged)
+                    {
+                        // List all fields for debugging
+                        var fields = loadingUIType.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance);
+                        Log.LogWarning($"[DirectConnect] LoadingUI.instance is null. Available fields: {string.Join(", ", fields.Select(f => f.Name))}");
+                        _loadingMonitorDebugLogged = true;
+                    }
+                    return;
+                }
 
                 // Check if loading screen is active by checking the gameObject
                 var loadingUIComponent = loadingUI as Component;
@@ -174,7 +219,7 @@ namespace TechtonicaDirectConnect
                 var isActiveField = loadingUIType.GetField("isActive", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
                 if (isActiveField != null)
                 {
-                    isActive = isActive || (bool)isActiveField.GetValue(loadingUI);
+                    try { isActive = isActive || (bool)isActiveField.GetValue(loadingUI); } catch { }
                 }
 
                 if (!isActive)
@@ -185,23 +230,50 @@ namespace TechtonicaDirectConnect
                     return;
                 }
 
-                // Get current loading state text
-                var currentStateField = loadingUIType.GetField("currentState", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                string currentState = currentStateField?.GetValue(loadingUI)?.ToString() ?? "";
+                // Get current loading state - try multiple field names
+                string currentState = "";
+                string[] stateFieldNames = { "currentState", "loadingState", "state", "currentLoadingState", "loadState" };
+                foreach (var fieldName in stateFieldNames)
+                {
+                    var stateField = loadingUIType.GetField(fieldName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (stateField != null)
+                    {
+                        currentState = stateField.GetValue(loadingUI)?.ToString() ?? "";
+                        if (!string.IsNullOrEmpty(currentState)) break;
+                    }
+                }
 
-                // Start monitoring when we reach "Generating_Machines" or later
-                if (currentState.Contains("Generating") || currentState.Contains("Machine"))
+                // Log the state periodically for debugging
+                if (!_loadingMonitorActive && !_loadingMonitorDebugLogged)
+                {
+                    Log.LogInfo($"[DirectConnect] LoadingUI found! Active={isActive}, State='{currentState}'");
+
+                    // List all fields for debugging
+                    var allFields = loadingUIType.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                    Log.LogInfo($"[DirectConnect] LoadingUI fields: {string.Join(", ", allFields.Select(f => f.Name))}");
+                    _loadingMonitorDebugLogged = true;
+                }
+
+                // Start monitoring when we're in a loading state (any state while loading screen is active)
+                // Changed: Don't wait for specific state, just monitor while loading is active
+                if (isActive)
                 {
                     if (!_loadingMonitorActive)
                     {
                         _loadingMonitorActive = true;
                         _loadingStuckTimer = 0f;
                         _lastLoadingState = currentState;
-                        Log.LogInfo($"[DirectConnect] Loading monitor started at state: {currentState}");
+                        Log.LogInfo($"[DirectConnect] Loading monitor started at state: '{currentState}'");
                     }
                     else
                     {
                         _loadingStuckTimer += Time.deltaTime;
+
+                        // Log progress every 2 seconds
+                        if ((int)_loadingStuckTimer % 2 == 0 && _loadingStuckTimer - (int)_loadingStuckTimer < Time.deltaTime)
+                        {
+                            Log.LogInfo($"[DirectConnect] Loading monitor: {_loadingStuckTimer:F1}s at '{currentState}'");
+                        }
 
                         // If stuck for more than 5 seconds, force finish loading
                         if (_loadingStuckTimer > 5f && !_finishLoadingCalled)
@@ -223,16 +295,23 @@ namespace TechtonicaDirectConnect
                                     Log.LogError($"[DirectConnect] Error calling OnFinishLoading: {ex.Message}");
                                 }
                             }
+                            else
+                            {
+                                // Try other methods to finish loading
+                                var methods = loadingUIType.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                                Log.LogInfo($"[DirectConnect] OnFinishLoading not found. Available methods: {string.Join(", ", methods.Select(m => m.Name))}");
+                            }
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                // Silently ignore errors in the monitor
-                if (_debugTimer < 0.1f) // Only log occasionally
+                // Log errors but don't spam
+                if (!_loadingMonitorDebugLogged)
                 {
-                    Log.LogWarning($"[DirectConnect] Loading monitor error: {ex.Message}");
+                    Log.LogError($"[DirectConnect] Loading monitor error: {ex}");
+                    _loadingMonitorDebugLogged = true;
                 }
             }
         }
@@ -828,7 +907,7 @@ namespace TechtonicaDirectConnect
     {
         public const string PLUGIN_GUID = "com.certifried.techtonicadirectconnect";
         public const string PLUGIN_NAME = "Techtonica Direct Connect";
-        public const string PLUGIN_VERSION = "1.0.31";
+        public const string PLUGIN_VERSION = "1.0.32";
     }
 
     /// <summary>
