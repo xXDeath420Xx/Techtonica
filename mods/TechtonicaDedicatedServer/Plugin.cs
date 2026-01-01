@@ -100,18 +100,16 @@ namespace TechtonicaDedicatedServer
                 Application.onBeforeRender += OnBeforeRender;
                 DebugLog("[Awake] Registered Application.onBeforeRender callback");
 
-                // Start auto-load in a background thread (bypasses Unity coroutine issues)
-                StartCoroutine(AutoLoadCoroutine());
-
-                // Also try thread-based approach as backup
-                var autoLoadThread = new Thread(AutoLoadThreadMethod);
-                autoLoadThread.IsBackground = true;
-                autoLoadThread.Start();
+                // DISABLED: Background threads break Unity under Wine
+                // Use time-based trigger in OnBeforeRender instead
+                _autoLoadTriggerTime = Time.realtimeSinceStartup + 20f;
+                DebugLog($"[Awake] Auto-load will trigger at {_autoLoadTriggerTime:F1}s");
             }
         }
 
         private static int _beforeRenderCount = 0;
         private static bool _beforeRenderFirstCall = true;
+        private static float _autoLoadTriggerTime = 0f;
 
         private static void OnBeforeRender()
         {
@@ -126,14 +124,14 @@ namespace TechtonicaDedicatedServer
             // Log every 300 calls
             if (_beforeRenderCount % 300 == 0)
             {
-                DebugLog($"[OnBeforeRender] Called {_beforeRenderCount} times");
+                DebugLog($"[OnBeforeRender] Called {_beforeRenderCount} times, t={Time.realtimeSinceStartup:F0}s");
             }
 
-            // Trigger auto-load after 15 seconds
-            if (_threadTriggeredAutoLoad && !Instance._autoLoadStarted)
+            // Trigger auto-load after 20 seconds using time-based check
+            if (_autoLoadTriggerTime > 0 && Time.realtimeSinceStartup >= _autoLoadTriggerTime && !Instance._autoLoadStarted)
             {
                 Instance._autoLoadStarted = true;
-                DebugLog("[OnBeforeRender] Triggering auto-load from onBeforeRender!");
+                DebugLog($"[OnBeforeRender] Time reached ({Time.realtimeSinceStartup:F1}s), triggering auto-load!");
                 AutoLoadManager.TryAutoLoad();
             }
 
@@ -168,32 +166,9 @@ namespace TechtonicaDedicatedServer
                     }
                 }
 
-                DebugLog("[AutoLoad-Thread] Wait complete, posting to main thread via SynchronizationContext...");
-
-                // Try posting to Unity's synchronization context
-                if (_unitySyncContext != null)
-                {
-                    DebugLog("[AutoLoad-Thread] Using SynchronizationContext.Post()...");
-                    _unitySyncContext.Post(_ =>
-                    {
-                        DebugLog("[AutoLoad-SyncContext] Executing on main thread via Post!");
-                        AutoLoadManager.TryAutoLoad();
-                    }, null);
-                    DebugLog("[AutoLoad-Thread] Post() called successfully");
-
-                    // Also set flag as failsafe - if Post() callback never executes,
-                    // LateUpdate/FixedUpdate/OnGUI will trigger auto-load instead
-                    _threadTriggeredAutoLoad = true;
-
-                    // Note: Cannot call Unity APIs directly from background thread - will crash
-                    // Relying on Update/OnGUI hooks to pick up _threadTriggeredAutoLoad flag
-                    DebugLog("[AutoLoad-Thread] Flag set, waiting for main thread to pick it up...");
-                }
-                else
-                {
-                    DebugLog("[AutoLoad-Thread] WARNING: SynchronizationContext is null! Setting flag instead...");
-                    _threadTriggeredAutoLoad = true;
-                }
+                // Just set the flag - SynchronizationContext.Post() breaks Wine
+                _threadTriggeredAutoLoad = true;
+                DebugLog("[AutoLoad-Thread] Flag set for main thread pickup");
             }
             catch (Exception ex)
             {

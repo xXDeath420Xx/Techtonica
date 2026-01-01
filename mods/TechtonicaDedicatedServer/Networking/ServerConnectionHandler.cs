@@ -23,6 +23,11 @@ namespace TechtonicaDedicatedServer.Networking
         private HashSet<int> _connectionsSpawningPlayer = new HashSet<int>();
         private Dictionary<int, float> _connectionFirstSeen = new Dictionary<int, float>();
 
+        // Player tracking for admin panel / Discord webhooks
+        private HashSet<int> _loggedConnections = new HashSet<int>();
+        private HashSet<int> _previousConnections = new HashSet<int>();
+        private Dictionary<int, DateTime> _connectionStartTimes = new Dictionary<int, DateTime>();
+
         // Cached types and methods
         private static Type _networkedPlayerType;
         private MethodInfo _targetLoadMethod;
@@ -435,6 +440,9 @@ namespace TechtonicaDedicatedServer.Networking
         /// </summary>
         private void CheckAndSendSaveData()
         {
+            // Track player connections/disconnections for admin panel
+            TrackPlayerConnections();
+
             var connections = NetworkServer.connections;
             if (connections == null || connections.Count == 0)
             {
@@ -1057,6 +1065,132 @@ namespace TechtonicaDedicatedServer.Networking
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Track player connections and disconnections for admin panel/Discord webhooks.
+        /// Called from the main thread via CheckAndSendSaveData.
+        /// </summary>
+        private void TrackPlayerConnections()
+        {
+            if (!NetworkServer.active) return;
+
+            var connections = NetworkServer.connections;
+            var currentConnections = new HashSet<int>();
+
+            // Build set of current connections and detect new ones
+            if (connections != null)
+            {
+                foreach (var kvp in connections)
+                {
+                    var conn = kvp.Value;
+                    if (conn == null) continue;
+
+                    int connId = conn.connectionId;
+                    currentConnections.Add(connId);
+
+                    // New connection that we haven't logged yet
+                    if (!_loggedConnections.Contains(connId))
+                    {
+                        _loggedConnections.Add(connId);
+                        _connectionStartTimes[connId] = DateTime.UtcNow;
+
+                        string address = GetConnectionAddress(conn);
+                        LogPlayerConnect(connId, address, currentConnections.Count);
+                    }
+                }
+            }
+
+            // Detect disconnections by comparing with previous frame
+            foreach (int connId in _previousConnections)
+            {
+                if (!currentConnections.Contains(connId))
+                {
+                    // Player disconnected
+                    string connectedFor = "unknown";
+                    if (_connectionStartTimes.TryGetValue(connId, out DateTime startTime))
+                    {
+                        TimeSpan duration = DateTime.UtcNow - startTime;
+                        connectedFor = FormatDuration(duration);
+                        _connectionStartTimes.Remove(connId);
+                    }
+
+                    LogPlayerDisconnect(connId, connectedFor, currentConnections.Count);
+                    _loggedConnections.Remove(connId);
+                }
+            }
+
+            // Update previous connections for next check
+            _previousConnections = currentConnections;
+        }
+
+        private string GetConnectionAddress(NetworkConnectionToClient conn)
+        {
+            try
+            {
+                // Try to get remote endpoint address
+                var addressProp = conn.GetType().GetProperty("address", BindingFlags.Public | BindingFlags.Instance);
+                if (addressProp != null)
+                {
+                    var addr = addressProp.GetValue(conn);
+                    if (addr != null) return addr.ToString();
+                }
+
+                // Try remoteEndPoint field
+                var endpointField = conn.GetType().GetField("remoteEndPoint", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                if (endpointField != null)
+                {
+                    var endpoint = endpointField.GetValue(conn);
+                    if (endpoint != null) return endpoint.ToString();
+                }
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log.LogWarning($"[ServerConnectionHandler] GetConnectionAddress error: {ex.Message}");
+            }
+            return "unknown";
+        }
+
+        private string FormatDuration(TimeSpan duration)
+        {
+            if (duration.TotalHours >= 1)
+                return $"{(int)duration.TotalHours}h {duration.Minutes}m {duration.Seconds}s";
+            else if (duration.TotalMinutes >= 1)
+                return $"{duration.Minutes}m {duration.Seconds}s";
+            else
+                return $"{duration.Seconds}s";
+        }
+
+        private static readonly string _eventLogPath = "/home/death/techtonica-server/events.log";
+
+        private void LogPlayerConnect(int connectionId, string address, int playerCount)
+        {
+            Plugin.Log.LogInfo($"[ServerConnectionHandler] Player connected: connId={connectionId}, address={address}, playerCount={playerCount}");
+
+            try
+            {
+                string json = $"{{\"timestamp\":\"{DateTime.UtcNow:O}\",\"type\":\"player_connect\",\"message\":\"Player connected\",\"connectionId\":\"{connectionId}\",\"address\":\"{address}\",\"playerCount\":\"{playerCount}\"}}";
+                System.IO.File.AppendAllText(_eventLogPath, json + "\n");
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log.LogError($"[ServerConnectionHandler] Failed to write player_connect event: {ex.Message}");
+            }
+        }
+
+        private void LogPlayerDisconnect(int connectionId, string connectedFor, int playerCount)
+        {
+            Plugin.Log.LogInfo($"[ServerConnectionHandler] Player disconnected: connId={connectionId}, connectedFor={connectedFor}, playerCount={playerCount}");
+
+            try
+            {
+                string json = $"{{\"timestamp\":\"{DateTime.UtcNow:O}\",\"type\":\"player_disconnect\",\"message\":\"Player disconnected\",\"connectionId\":\"{connectionId}\",\"connectedFor\":\"{connectedFor}\",\"playerCount\":\"{playerCount}\"}}";
+                System.IO.File.AppendAllText(_eventLogPath, json + "\n");
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log.LogError($"[ServerConnectionHandler] Failed to write player_disconnect event: {ex.Message}");
+            }
         }
     }
 }

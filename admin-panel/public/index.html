@@ -915,7 +915,7 @@
         <div class="modal">
             <div class="modal-header"><h3 class="modal-title">Create Invite Link</h3><button class="modal-close" onclick="closeModal('invite-modal')">&times;</button></div>
             <div class="modal-body">
-                <div class="form-group"><label class="form-label">Role</label><select class="form-select" id="invite-role"><option value="manager">Server Manager</option><option value="admin">Administrator</option></select></div>
+                <div class="form-group"><label class="form-label">Role</label><select class="form-select" id="invite-role"><option value="viewer">Viewer</option><option value="moderator">Moderator</option><option value="admin">Administrator</option><option value="owner">Owner</option></select></div>
                 <div class="form-group"><label class="form-label">Max Uses (optional)</label><input type="number" class="form-input" id="invite-max-uses" placeholder="Leave blank for unlimited" min="1"></div>
                 <div class="form-group"><label class="form-label">Expires In</label><select class="form-select" id="invite-expires"><option value="1">1 hour</option><option value="24" selected>24 hours</option><option value="168">7 days</option><option value="720">30 days</option></select></div>
                 <div id="invite-result" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--color-surface); border-radius: 0.5rem;">

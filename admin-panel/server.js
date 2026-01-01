@@ -1358,7 +1358,8 @@ app.delete('/api/users/:id', requireAuth, requirePermission('users.delete'), (re
 app.post('/api/invites', requireAuth, requirePermission('users.create'), (req, res) => {
     const { role, expiresIn, maxUses } = req.body;
 
-    if (role && ROLES[role]?.level >= ROLES[req.user.role]?.level) {
+    // Owners can create invites for any role, others can only create for lower roles
+    if (role && req.user.role !== 'owner' && ROLES[role]?.level >= ROLES[req.user.role]?.level) {
         return res.status(403).json({ error: 'Cannot create invite for equal or higher role' });
     }
 
@@ -1819,6 +1820,11 @@ function processGameEvents() {
             };
             delete data.timestamp;
             delete data.type;
+
+            // Replace player IP with server address for Discord webhooks (privacy)
+            if (webhookEvent === 'player_connect' && data.address) {
+                data.address = 'techtonica.certifriedmultitool.com:6968';
+            }
 
             triggerWebhook(webhookEvent, data);
         }
